@@ -167,12 +167,13 @@ export default function ContentPage() {
   };
 
   // Safe array initialization with null checks
-  const contentList = Array.isArray(contentData?.data) ? contentData.data : [];
+  const contentList = Array.isArray(contentData?.data?.data) ? contentData?.data?.data : [];
   const totalPages =
     contentData?.total && contentData?.per_page
       ? Math.ceil(contentData.total / contentData.per_page)
       : 1;
-  const genres = Array.isArray(genresData?.data) ? genresData.data : [];
+  // const genres = Array.isArray(genresData) ? genresData.data : [];
+  // console.log(genresData);
 
   return (
     <div className="w-full min-h-screen" style={{ backgroundColor: "#111" }}>
@@ -320,7 +321,7 @@ export default function ContentPage() {
                           <SelectValue placeholder="Select genre" />
                         </SelectTrigger>
                         <SelectContent className="bg-gray-700 border-gray-600">
-                          {genres.map((genre) => (
+                          {genresData?.map((genre) => (
                             <SelectItem
                               key={genre.id}
                               value={genre.id.toString()}
@@ -422,7 +423,7 @@ export default function ContentPage() {
                 <TableSkeleton rows={5} columns={7} />
               ) : (
                 <TableBody>
-                  {contentList.map((content) => (
+                  {contentList.map((content: Content) => (
                     <TableRow
                       key={content.id}
                       className="border-gray-700 hover:bg-gray-600"
@@ -658,7 +659,7 @@ export default function ContentPage() {
                         <SelectValue placeholder="Select genre" />
                       </SelectTrigger>
                       <SelectContent className="bg-gray-700 border-gray-600">
-                        {genres.map((genre) => (
+                        {genresData?.map((genre) => (
                           <SelectItem
                             key={genre.id}
                             value={genre.id.toString()}

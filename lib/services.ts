@@ -98,7 +98,7 @@ export const contentService = {
   },
 
   getContent: async (id: number): Promise<Content> => {
-    const response = await api.get(`/api/contents/${id}`);
+    const response = await api.get(`/api/content/${id}`);
     return response.data.data;
   },
 
