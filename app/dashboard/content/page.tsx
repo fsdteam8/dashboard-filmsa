@@ -33,7 +33,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { contentService, genreService } from "@/lib/services";
+import { contentService, genreService, type Content } from "@/lib/services";
 import { Edit, Trash2, Plus, Globe, Clock } from "lucide-react";
 import { toast } from "sonner";
 import Image from "next/image";
@@ -44,6 +44,8 @@ import { Pagination } from "@/components/pagination";
 
 export default function ContentPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editingContent, setEditingContent] = useState<Content | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [formData, setFormData] = useState({
     title: "",
@@ -66,7 +68,7 @@ export default function ContentPage() {
 
   const { data: genresData } = useQuery({
     queryKey: ["genres-all"],
-    queryFn: () => genreService.getGenres(1), // Get first page for dropdown
+    queryFn: () => genreService.getGenres(1),
   });
 
   const createMutation = useMutation({
@@ -74,21 +76,26 @@ export default function ContentPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["contents"] });
       setIsCreateOpen(false);
-      setFormData({
-        title: "",
-        description: "",
-        director_name: "",
-        genre_id: "",
-        publish: "public",
-        schedule: "",
-        video1: null,
-        image: null,
-        profile_pic: null,
-      });
+      resetForm();
       toast.success("Content created successfully");
     },
     onError: () => {
       toast.error("Failed to create content");
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: FormData }) =>
+      contentService.updateContent(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["contents"] });
+      setIsEditOpen(false);
+      setEditingContent(null);
+      resetForm();
+      toast.success("Content updated successfully");
+    },
+    onError: () => {
+      toast.error("Failed to update content");
     },
   });
 
@@ -102,6 +109,20 @@ export default function ContentPage() {
       toast.error("Failed to delete content");
     },
   });
+
+  const resetForm = () => {
+    setFormData({
+      title: "",
+      description: "",
+      director_name: "",
+      genre_id: "",
+      publish: "public",
+      schedule: "",
+      video1: null,
+      image: null,
+      profile_pic: null,
+    });
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,18 +138,41 @@ export default function ContentPage() {
       }
     });
 
-    createMutation.mutate(data);
+    if (editingContent) {
+      updateMutation.mutate({ id: editingContent.id, data });
+    } else {
+      createMutation.mutate(data);
+    }
+  };
+
+  const handleEdit = async (content: Content) => {
+    try {
+      const fullContent = await contentService.getContent(content.id);
+      setEditingContent(fullContent);
+      setFormData({
+        title: fullContent.title,
+        description: fullContent.description,
+        director_name: fullContent.director_name || "",
+        genre_id: fullContent.genre_id.toString(),
+        publish: fullContent.publish,
+        schedule: fullContent.schedule || "",
+        video1: null,
+        image: null,
+        profile_pic: null,
+      });
+      setIsEditOpen(true);
+    } catch (error) {
+      toast.error("Failed to load content details");
+    }
   };
 
   // Safe array initialization with null checks
-  // const contentList = Array.isArray(contentData?.data) ? contentData.data : [];
+  const contentList = Array.isArray(contentData?.data) ? contentData.data : [];
   const totalPages =
-    contentData?.data.total && contentData.data?.per_page
-      ? Math.ceil(contentData.data.total / contentData.data.per_page)
+    contentData?.total && contentData?.per_page
+      ? Math.ceil(contentData.total / contentData.per_page)
       : 1;
-  // const genres = Array.isArray(genresData?.data) ? genresData.data : [];
-
-  console.log(contentData);
+  const genres = Array.isArray(genresData?.data) ? genresData.data : [];
 
   return (
     <div className="w-full min-h-screen" style={{ backgroundColor: "#111" }}>
@@ -276,15 +320,14 @@ export default function ContentPage() {
                           <SelectValue placeholder="Select genre" />
                         </SelectTrigger>
                         <SelectContent className="bg-gray-700 border-gray-600">
-                          {genresData &&
-                            genresData.map((genre) => (
-                              <SelectItem
-                                key={genre.id}
-                                value={genre.id.toString()}
-                              >
-                                {genre.name}
-                              </SelectItem>
-                            ))}
+                          {genres.map((genre) => (
+                            <SelectItem
+                              key={genre.id}
+                              value={genre.id.toString()}
+                            >
+                              {genre.name}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
@@ -379,108 +422,308 @@ export default function ContentPage() {
                 <TableSkeleton rows={5} columns={7} />
               ) : (
                 <TableBody>
-                  {contentData &&
-                    contentData.data.data.map((content) => (
-                      <TableRow
-                        key={content.id}
-                        className="border-gray-700 hover:bg-gray-600"
-                        style={{ backgroundColor: "#272727" }}
-                      >
-                        <TableCell className="py-4">
-                          <div className="flex items-center gap-3">
-                            <Image
-                              src={
-                                content.image ||
-                                "/placeholder.svg?height=60&width=80"
-                              }
-                              alt={content.title}
-                              width={80}
-                              height={60}
-                              className="rounded object-cover"
-                            />
-                            <div>
-                              <h3 className="text-white font-medium">
-                                {content.title}
-                              </h3>
-                              <p className="text-gray-400 text-sm truncate max-w-xs">
-                                {content.description}
-                              </p>
-                            </div>
+                  {contentList.map((content) => (
+                    <TableRow
+                      key={content.id}
+                      className="border-gray-700 hover:bg-gray-600"
+                      style={{ backgroundColor: "#272727" }}
+                    >
+                      <TableCell className="py-4">
+                        <div className="flex items-center gap-3">
+                          <Image
+                            src={
+                              content.image ||
+                              "/placeholder.svg?height=60&width=80"
+                            }
+                            alt={content.title}
+                            width={80}
+                            height={60}
+                            className="rounded object-cover"
+                          />
+                          <div>
+                            <h3 className="text-white font-medium">
+                              {content.title}
+                            </h3>
+                            <p className="text-gray-400 text-sm truncate max-w-xs">
+                              {content.description}
+                            </p>
                           </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={
-                              content.publish === "public"
-                                ? "default"
-                                : "secondary"
-                            }
-                            className={
-                              content.publish === "public"
-                                ? "bg-green-600"
-                                : "bg-orange-600"
-                            }
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={
+                            content.publish === "public"
+                              ? "default"
+                              : "secondary"
+                          }
+                          className={
+                            content.publish === "public"
+                              ? "bg-green-600"
+                              : "bg-orange-600"
+                          }
+                        >
+                          {content.publish === "public" ? (
+                            <>
+                              <Globe className="h-3 w-3 mr-1" />
+                              Public
+                            </>
+                          ) : (
+                            <>
+                              <Clock className="h-3 w-3 mr-1" />
+                              Schedule
+                            </>
+                          )}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-gray-300">
+                        {content.genre_name}
+                      </TableCell>
+                      <TableCell className="text-gray-300">
+                        {new Date(content.created_at).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell className="text-gray-300">
+                        {content.total_view}
+                      </TableCell>
+                      <TableCell className="text-gray-300">
+                        {content.total_likes}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleEdit(content)}
+                            className="text-gray-400 hover:text-white hover:bg-gray-700"
                           >
-                            {content.publish === "public" ? (
-                              <>
-                                <Globe className="h-3 w-3 mr-1" />
-                                Public
-                              </>
-                            ) : (
-                              <>
-                                <Clock className="h-3 w-3 mr-1" />
-                                Schedule
-                              </>
-                            )}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-gray-300">
-                          {content.genre_name}
-                        </TableCell>
-                        <TableCell className="text-gray-300">
-                          {new Date(content.created_at).toLocaleDateString()}
-                        </TableCell>
-                        <TableCell className="text-gray-300">
-                          {content.total_view}
-                        </TableCell>
-                        <TableCell className="text-gray-300">
-                          {content.total_likes}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="text-gray-400 hover:text-white hover:bg-gray-700"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => deleteMutation.mutate(content.id)}
-                              className="text-gray-400 hover:text-red-400 hover:bg-gray-700"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => deleteMutation.mutate(content.id)}
+                            className="text-gray-400 hover:text-red-400 hover:bg-gray-700"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
                 </TableBody>
               )}
             </Table>
-            {contentData && contentData.data.total > 0 && (
+            {contentData && contentData.total > 0 && (
               <Pagination
-                currentPage={contentData.data.current_page || currentPage}
+                currentPage={contentData.current_page || currentPage}
                 totalPages={totalPages}
                 onPageChange={setCurrentPage}
-                totalItems={contentData.data.total}
-                itemsPerPage={contentData.data.per_page || 10}
+                totalItems={contentData.total}
+                itemsPerPage={contentData.per_page || 10}
               />
             )}
           </CardContent>
         </Card>
+
+        {/* Edit Dialog */}
+        <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+          <DialogContent className="bg-gray-800 border-gray-700 text-white max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Edit Content</DialogTitle>
+              <p className="text-gray-400">
+                Dashboard › Content › Edit Content
+              </p>
+            </DialogHeader>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Left Column */}
+                <div className="space-y-4">
+                  <VideoUpload
+                    label="Video"
+                    onFileChange={(file) =>
+                      setFormData((prev) => ({ ...prev, video1: file }))
+                    }
+                    currentVideo={editingContent?.video1}
+                  />
+
+                  <div>
+                    <Label htmlFor="edit-title">Title</Label>
+                    <Input
+                      id="edit-title"
+                      value={formData.title}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          title: e.target.value,
+                        }))
+                      }
+                      placeholder="Type Title here..."
+                      className="bg-gray-700 border-gray-600 text-white"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="edit-description">Description</Label>
+                    <Textarea
+                      id="edit-description"
+                      value={formData.description}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          description: e.target.value,
+                        }))
+                      }
+                      placeholder="Type description here..."
+                      className="bg-gray-700 border-gray-600 text-white min-h-[120px]"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <Label>Save or publish</Label>
+                    <RadioGroup
+                      value={formData.publish}
+                      onValueChange={(value) =>
+                        setFormData((prev) => ({ ...prev, publish: value }))
+                      }
+                      className="mt-2"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="private" id="edit-private" />
+                        <Label htmlFor="edit-private">Private</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="public" id="edit-public" />
+                        <Label htmlFor="edit-public">Public</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="schedule" id="edit-schedule" />
+                        <Label htmlFor="edit-schedule">Schedule</Label>
+                      </div>
+                    </RadioGroup>
+
+                    {formData.publish === "schedule" && (
+                      <div className="mt-4 space-y-2">
+                        <Label>Schedule as public</Label>
+                        <div className="flex gap-2">
+                          <Input
+                            type="date"
+                            value={formData.schedule.split(" ")[0] || ""}
+                            onChange={(e) => {
+                              const time =
+                                formData.schedule.split(" ")[1] || "00:00:00";
+                              setFormData((prev) => ({
+                                ...prev,
+                                schedule: `${e.target.value} ${time}`,
+                              }));
+                            }}
+                            className="bg-gray-700 border-gray-600 text-white"
+                          />
+                          <Input
+                            type="time"
+                            value={
+                              formData.schedule
+                                .split(" ")[1]
+                                ?.substring(0, 5) || ""
+                            }
+                            onChange={(e) => {
+                              const date =
+                                formData.schedule.split(" ")[0] ||
+                                new Date().toISOString().split("T")[0];
+                              setFormData((prev) => ({
+                                ...prev,
+                                schedule: `${date} ${e.target.value}:00`,
+                              }));
+                            }}
+                            className="bg-gray-700 border-gray-600 text-white"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Right Column */}
+                <div className="space-y-4">
+                  <div>
+                    <Label>Genres</Label>
+                    <Select
+                      value={formData.genre_id}
+                      onValueChange={(value) =>
+                        setFormData((prev) => ({ ...prev, genre_id: value }))
+                      }
+                    >
+                      <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
+                        <SelectValue placeholder="Select genre" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-gray-700 border-gray-600">
+                        {genres.map((genre) => (
+                          <SelectItem
+                            key={genre.id}
+                            value={genre.id.toString()}
+                          >
+                            {genre.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <ImageUpload
+                    label="Thumbnail"
+                    onFileChange={(file) =>
+                      setFormData((prev) => ({ ...prev, image: file }))
+                    }
+                    currentImage={editingContent?.image}
+                  />
+
+                  <div>
+                    <Label htmlFor="edit-director">Director</Label>
+                    <Input
+                      id="edit-director"
+                      value={formData.director_name}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          director_name: e.target.value,
+                        }))
+                      }
+                      placeholder="Type Director Name here..."
+                      className="bg-gray-700 border-gray-600 text-white"
+                    />
+                  </div>
+
+                  <ImageUpload
+                    label="Director's photo"
+                    onFileChange={(file) =>
+                      setFormData((prev) => ({ ...prev, profile_pic: file }))
+                    }
+                    currentImage={editingContent?.profile_pic}
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsEditOpen(false)}
+                  className="border-gray-600 text-gray-300 hover:bg-gray-700"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={updateMutation.isPending}
+                  className="bg-white text-black hover:bg-gray-100"
+                >
+                  {updateMutation.isPending ? "Updating..." : "Update"}
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

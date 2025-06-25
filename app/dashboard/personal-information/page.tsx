@@ -1,21 +1,29 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useState } from "react"
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { settingsService } from "@/lib/services"
-import { Edit, Save } from "lucide-react"
-import { toast } from "sonner"
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { settingsService } from "@/lib/services";
+import { Edit, Save, Eye, EyeOff } from "lucide-react";
+import { toast } from "sonner";
 
 export default function PersonalInformationPage() {
-  const [isEditing, setIsEditing] = useState(false)
-  const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false)
+  const [isEditing, setIsEditing] = useState(false);
+  const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [formData, setFormData] = useState({
     first_name: "",
     last_name: "",
@@ -23,14 +31,14 @@ export default function PersonalInformationPage() {
     email: "",
     country: "",
     city: "",
-  })
+  });
   const [passwordData, setPasswordData] = useState({
     current_password: "",
     new_password: "",
     confirm_new_password: "",
-  })
+  });
 
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
 
   const { data: userInfo, isLoading } = useQuery({
     queryKey: ["userInfo"],
@@ -43,54 +51,54 @@ export default function PersonalInformationPage() {
         email: data.email || "",
         country: data.country || "",
         city: data.city || "",
-      })
+      });
     },
-  })
+  });
 
   const updateInfoMutation = useMutation({
     mutationFn: settingsService.updateUserInfo,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["userInfo"] })
-      setIsEditing(false)
-      toast.success("Personal information updated successfully")
+      queryClient.invalidateQueries({ queryKey: ["userInfo"] });
+      setIsEditing(false);
+      toast.success("Personal information updated successfully");
     },
     onError: () => {
-      toast.error("Failed to update personal information")
+      toast.error("Failed to update personal information");
     },
-  })
+  });
 
   const changePasswordMutation = useMutation({
     mutationFn: settingsService.changePassword,
     onSuccess: () => {
-      setIsPasswordDialogOpen(false)
+      setIsPasswordDialogOpen(false);
       setPasswordData({
         current_password: "",
         new_password: "",
         confirm_new_password: "",
-      })
-      toast.success("Password changed successfully")
+      });
+      toast.success("Password changed successfully");
     },
     onError: () => {
-      toast.error("Failed to change password")
+      toast.error("Failed to change password");
     },
-  })
+  });
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    updateInfoMutation.mutate(formData)
-  }
+    e.preventDefault();
+    updateInfoMutation.mutate(formData);
+  };
 
   const handlePasswordSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
     if (passwordData.new_password !== passwordData.confirm_new_password) {
-      toast.error("New passwords do not match")
-      return
+      toast.error("New passwords do not match");
+      return;
     }
-    changePasswordMutation.mutate(passwordData)
-  }
+    changePasswordMutation.mutate(passwordData);
+  };
 
   if (isLoading) {
-    return <div className="p-6 text-white">Loading...</div>
+    return <div className="p-6 text-white">Loading...</div>;
   }
 
   return (
@@ -98,30 +106,47 @@ export default function PersonalInformationPage() {
       <div className="p-6 space-y-6 w-full">
         <div className="flex items-center justify-between w-full">
           <div>
-            <h1 className="text-3xl font-bold text-white">Personal Information</h1>
+            <h1 className="text-3xl font-bold text-white">
+              Personal Information
+            </h1>
             <p className="text-gray-400">
               Dashboard › Personal Information
               {isEditing && " › Edit Personal Information"}
             </p>
           </div>
-          {!isEditing ? (
-            <Button onClick={() => setIsEditing(true)} className="bg-white text-black hover:bg-gray-100">
-              <Edit className="h-4 w-4 mr-2" />
-              Edit
-            </Button>
-          ) : (
+          <div className="flex gap-2">
             <Button
-              onClick={handleSubmit}
-              disabled={updateInfoMutation.isPending}
-              className="bg-white text-black hover:bg-gray-100"
+              onClick={() => setIsPasswordDialogOpen(true)}
+              variant="outline"
+              className="border-gray-600 text-gray-300 hover:bg-gray-700"
             >
-              <Save className="h-4 w-4 mr-2" />
-              {updateInfoMutation.isPending ? "Saving..." : "Save"}
+              Change Password
             </Button>
-          )}
+            {!isEditing ? (
+              <Button
+                onClick={() => setIsEditing(true)}
+                className="bg-white text-black hover:bg-gray-100"
+              >
+                <Edit className="h-4 w-4 mr-2" />
+                Edit
+              </Button>
+            ) : (
+              <Button
+                onClick={handleSubmit}
+                disabled={updateInfoMutation.isPending}
+                className="bg-white text-black hover:bg-gray-100"
+              >
+                <Save className="h-4 w-4 mr-2" />
+                {updateInfoMutation.isPending ? "Saving..." : "Save"}
+              </Button>
+            )}
+          </div>
         </div>
 
-        <Card className="bg-gray-800 border-gray-700 w-full max-w-4xl">
+        <Card
+          style={{ backgroundColor: "#272727" }}
+          className="border-gray-700 w-full max-w-4xl"
+        >
           <CardContent className="p-6">
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -132,7 +157,12 @@ export default function PersonalInformationPage() {
                   <Input
                     id="first_name"
                     value={formData.first_name}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, first_name: e.target.value }))}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        first_name: e.target.value,
+                      }))
+                    }
                     className="bg-gray-700 border-gray-600 text-white mt-2"
                     disabled={!isEditing}
                     placeholder="Bessie"
@@ -145,7 +175,12 @@ export default function PersonalInformationPage() {
                   <Input
                     id="last_name"
                     value={formData.last_name}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, last_name: e.target.value }))}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        last_name: e.target.value,
+                      }))
+                    }
                     className="bg-gray-700 border-gray-600 text-white mt-2"
                     disabled={!isEditing}
                     placeholder="Edwards"
@@ -190,7 +225,12 @@ export default function PersonalInformationPage() {
                   <Input
                     id="country"
                     value={formData.country}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, country: e.target.value }))}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        country: e.target.value,
+                      }))
+                    }
                     className="bg-gray-700 border-gray-600 text-white mt-2"
                     disabled={!isEditing}
                     placeholder="USA"
@@ -203,7 +243,9 @@ export default function PersonalInformationPage() {
                   <Input
                     id="city"
                     value={formData.city}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, city: e.target.value }))}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, city: e.target.value }))
+                    }
                     className="bg-gray-700 border-gray-600 text-white mt-2"
                     disabled={!isEditing}
                     placeholder="Alabama"
@@ -215,44 +257,103 @@ export default function PersonalInformationPage() {
         </Card>
 
         {/* Change Password Dialog */}
-        <Dialog open={isPasswordDialogOpen} onOpenChange={setIsPasswordDialogOpen}>
+        <Dialog
+          open={isPasswordDialogOpen}
+          onOpenChange={setIsPasswordDialogOpen}
+        >
           <DialogContent className="bg-gray-800 border-gray-700 text-white">
             <DialogHeader>
               <DialogTitle>Change Password</DialogTitle>
             </DialogHeader>
             <form onSubmit={handlePasswordSubmit} className="space-y-4">
               <div>
-                <Label htmlFor="new_password">New Password</Label>
-                <Input
-                  id="new_password"
-                  type="password"
-                  value={passwordData.new_password}
-                  onChange={(e) => setPasswordData((prev) => ({ ...prev, new_password: e.target.value }))}
-                  className="bg-gray-700 border-gray-600 text-white"
-                  required
-                />
-              </div>
-              <div>
                 <Label htmlFor="current_password">Current Password</Label>
-                <Input
-                  id="current_password"
-                  type="password"
-                  value={passwordData.current_password}
-                  onChange={(e) => setPasswordData((prev) => ({ ...prev, current_password: e.target.value }))}
-                  className="bg-gray-700 border-gray-600 text-white"
-                  required
-                />
+                <div className="relative">
+                  <Input
+                    id="current_password"
+                    type={showCurrentPassword ? "text" : "password"}
+                    value={passwordData.current_password}
+                    onChange={(e) =>
+                      setPasswordData((prev) => ({
+                        ...prev,
+                        current_password: e.target.value,
+                      }))
+                    }
+                    className="bg-gray-700 border-gray-600 text-white pr-10"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
+                  >
+                    {showCurrentPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
               </div>
               <div>
-                <Label htmlFor="confirm_new_password">Confirm New Password</Label>
-                <Input
-                  id="confirm_new_password"
-                  type="password"
-                  value={passwordData.confirm_new_password}
-                  onChange={(e) => setPasswordData((prev) => ({ ...prev, confirm_new_password: e.target.value }))}
-                  className="bg-gray-700 border-gray-600 text-white"
-                  required
-                />
+                <Label htmlFor="new_password">New Password</Label>
+                <div className="relative">
+                  <Input
+                    id="new_password"
+                    type={showNewPassword ? "text" : "password"}
+                    value={passwordData.new_password}
+                    onChange={(e) =>
+                      setPasswordData((prev) => ({
+                        ...prev,
+                        new_password: e.target.value,
+                      }))
+                    }
+                    className="bg-gray-700 border-gray-600 text-white pr-10"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
+                  >
+                    {showNewPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="confirm_new_password">
+                  Confirm New Password
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="confirm_new_password"
+                    type={showConfirmPassword ? "text" : "password"}
+                    value={passwordData.confirm_new_password}
+                    onChange={(e) =>
+                      setPasswordData((prev) => ({
+                        ...prev,
+                        confirm_new_password: e.target.value,
+                      }))
+                    }
+                    className="bg-gray-700 border-gray-600 text-white pr-10"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
+                  >
+                    {showConfirmPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
               </div>
               <Button
                 type="submit"
@@ -266,5 +367,5 @@ export default function PersonalInformationPage() {
         </Dialog>
       </div>
     </div>
-  )
+  );
 }
