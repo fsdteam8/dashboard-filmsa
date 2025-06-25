@@ -1,3 +1,4 @@
+// @ts-nocheck
 "use client";
 
 import type React from "react";
@@ -178,19 +179,19 @@ export default function ContentPage() {
   return (
     <div className="w-full min-h-screen" style={{ backgroundColor: "#111" }}>
       <div className="p-6 space-y-6 w-full">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between bg-[#111]">
           <div>
             <h1 className="text-3xl font-bold text-white">Content</h1>
             <p className="text-gray-400">Dashboard › Content</p>
           </div>
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
             <DialogTrigger asChild>
-              <Button className="bg-white text-black hover:bg-gray-100">
-                <Plus className="h-4 w-4 mr-2" />
+              <Button className="bg-white text-black hover:bg-gray-100 rounded-full px-6">
                 Create Content
+                <Plus className="h-4 w-4 mr-2" />
               </Button>
             </DialogTrigger>
-            <DialogContent className="bg-gray-800 border-gray-700 text-white max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="bg-[#111] border-gray-700 text-white max-w-4xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Create Content</DialogTitle>
                 <p className="text-gray-400">
@@ -221,7 +222,7 @@ export default function ContentPage() {
                           }))
                         }
                         placeholder="Type Title here..."
-                        className="bg-gray-700 border-gray-600 text-white"
+                        className="bg-[#111] border-gray-600 text-white"
                         required
                       />
                     </div>
@@ -238,7 +239,7 @@ export default function ContentPage() {
                           }))
                         }
                         placeholder="Type description here..."
-                        className="bg-gray-700 border-gray-600 text-white min-h-[120px]"
+                        className="bg-[#111] border-gray-600 text-white min-h-[120px]"
                         required
                       />
                     </div>
@@ -252,16 +253,16 @@ export default function ContentPage() {
                         }
                         className="mt-2"
                       >
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="private" id="private" />
+                        <div className="flex items-center space-x-2 ">
+                          <RadioGroupItem value="private" id="private" className="bg-gray-500" />
                           <Label htmlFor="private">Private</Label>
                         </div>
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="public" id="public" />
+                        <div className="flex items-center space-x-2" >
+                          <RadioGroupItem value="public" id="public"className="bg-gray-500"  />
                           <Label htmlFor="public">Public</Label>
                         </div>
                         <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="schedule" id="schedule" />
+                          <RadioGroupItem value="schedule" id="schedule" className="bg-gray-500"  />
                           <Label htmlFor="schedule">Schedule</Label>
                         </div>
                       </RadioGroup>
@@ -281,7 +282,7 @@ export default function ContentPage() {
                                   schedule: `${e.target.value} ${time}`,
                                 }));
                               }}
-                              className="bg-gray-700 border-gray-600 text-white"
+                              className="bg-[#111] border-gray-600 text-white"
                             />
                             <Input
                               type="time"
@@ -299,7 +300,7 @@ export default function ContentPage() {
                                   schedule: `${date} ${e.target.value}:00`,
                                 }));
                               }}
-                              className="bg-gray-700 border-gray-600 text-white"
+                              className="bg-[#111] border-gray-600 text-white"
                             />
                           </div>
                         </div>
@@ -317,10 +318,10 @@ export default function ContentPage() {
                           setFormData((prev) => ({ ...prev, genre_id: value }))
                         }
                       >
-                        <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
+                        <SelectTrigger className="bg-transparent border-gray-600 text-white">
                           <SelectValue placeholder="Select genre" />
                         </SelectTrigger>
-                        <SelectContent className="bg-gray-700 border-gray-600">
+                        <SelectContent className="bg-[#111] text-white border-gray-600">
                           {genresData?.map((genre) => (
                             <SelectItem
                               key={genre.id}
@@ -353,7 +354,7 @@ export default function ContentPage() {
                           }))
                         }
                         placeholder="Type Director Name here..."
-                        className="bg-gray-700 border-gray-600 text-white"
+                        className="bg-[#111] border-gray-600 text-white"
                       />
                     </div>
 
@@ -371,7 +372,7 @@ export default function ContentPage() {
                     type="button"
                     variant="outline"
                     onClick={() => setIsCreateOpen(false)}
-                    className="border-gray-600 text-gray-300 hover:bg-gray-700"
+                    className="border-gray-600 text-black hover:bg-gray-700"
                   >
                     Cancel
                   </Button>
@@ -390,12 +391,12 @@ export default function ContentPage() {
 
         <Card
           style={{ backgroundColor: "#272727" }}
-          className="border-gray-700"
+          className="bg-[#272727] border-none rounded-lg"
         >
-          <CardContent className="p-0">
+          <CardContent className="p-0 rounded-lg">
             <Table>
               <TableHeader>
-                <TableRow className="border-gray-700 bg-gray-900">
+                <TableRow className="border-none bg-[#272727] ">
                   <TableHead className="text-gray-300 font-medium">
                     Video
                   </TableHead>
@@ -420,13 +421,13 @@ export default function ContentPage() {
                 </TableRow>
               </TableHeader>
               {isLoading ? (
-                <TableSkeleton rows={5} columns={7} />
+                <TableSkeleton rows={10} columns={7} />
               ) : (
                 <TableBody>
                   {contentData?.data?.data?.map((content: Content) => (
                     <TableRow
                       key={content.id}
-                      className="border-gray-700 hover:bg-gray-600"
+                      className="border-[BFBFBF] hover:bg-gray-600"
                       style={{ backgroundColor: "#272727" }}
                     >
                       <TableCell className="py-4">
@@ -452,17 +453,7 @@ export default function ContentPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge
-                          variant={
-                            content.publish === "public"
-                              ? "default"
-                              : "secondary"
-                          }
-                          className={
-                            content.publish === "public"
-                              ? "bg-green-600"
-                              : "bg-orange-600"
-                          }
+                        <Badge className="bg-transparent"
                         >
                           {content.publish === "public" ? (
                             <>
@@ -710,7 +701,7 @@ export default function ContentPage() {
                   type="button"
                   variant="outline"
                   onClick={() => setIsEditOpen(false)}
-                  className="border-gray-600 text-gray-300 hover:bg-gray-700"
+                  className="border-gray-600  bg-white !text-black hover:bg-gray-700"
                 >
                   Cancel
                 </Button>

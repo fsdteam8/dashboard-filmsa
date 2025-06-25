@@ -58,7 +58,7 @@ export function Pagination({
 
   return (
     <div
-      className="flex items-center justify-between px-6 py-4 border-t border-gray-700"
+      className="flex items-center justify-between px-6 py-4 "
       style={{ backgroundColor: "#272727" }}
     >
       <div className="text-sm text-gray-400">
@@ -70,7 +70,7 @@ export function Pagination({
           size="sm"
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage === 1}
-          className="border-gray-600 text-gray-300 hover:bg-gray-700"
+          className="bg-[#707070] text-black "
         >
           <ChevronLeft className="h-4 w-4" />
         </Button>
@@ -84,8 +84,8 @@ export function Pagination({
             disabled={page === "..."}
             className={
               page === currentPage
-                ? "bg-white text-black"
-                : "border-gray-600 text-gray-300 hover:bg-gray-700"
+                ? "bg-gray-300 text-black"
+                : "bg-[#707070] text-black "
             }
           >
             {page}
@@ -97,7 +97,7 @@ export function Pagination({
           size="sm"
           onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage === totalPages}
-          className="border-gray-600 text-gray-300 hover:bg-gray-700"
+          className="bg-[#707070] text-black "
         >
           <ChevronRight className="h-4 w-4" />
         </Button>

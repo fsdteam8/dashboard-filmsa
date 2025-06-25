@@ -92,3 +92,14 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+
+.headTitle{
+  color: #FFF;
+/* Heading/Heading H3 */
+font-family: Manrope;
+font-size: 48px;
+font-style: normal;
+font-weight: 600;
+line-height: 120%; /* 57.6px */
+}
