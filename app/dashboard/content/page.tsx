@@ -167,10 +167,10 @@ export default function ContentPage() {
   };
 
   // Safe array initialization with null checks
-  const contentList = Array.isArray(contentData?.data?.data) ? contentData?.data?.data : [];
+  // const contentList = Array.isArray(contentData?.data?.data) ? contentData?.data?.data : [];
   const totalPages =
-    contentData?.total && contentData?.per_page
-      ? Math.ceil(contentData.total / contentData.per_page)
+    contentData?.data?.total && contentData?.data?.per_page
+      ? Math.ceil(contentData.data?.total / contentData.data?.per_page)
       : 1;
   // const genres = Array.isArray(genresData) ? genresData.data : [];
   // console.log(genresData);
@@ -423,7 +423,7 @@ export default function ContentPage() {
                 <TableSkeleton rows={5} columns={7} />
               ) : (
                 <TableBody>
-                  {contentList.map((content: Content) => (
+                  {contentData?.data?.data?.map((content: Content) => (
                     <TableRow
                       key={content.id}
                       className="border-gray-700 hover:bg-gray-600"
@@ -514,13 +514,13 @@ export default function ContentPage() {
                 </TableBody>
               )}
             </Table>
-            {contentData && contentData.total > 0 && (
+            {contentData && (
               <Pagination
-                currentPage={contentData.current_page || currentPage}
+                currentPage={contentData.data.current_page || currentPage}
                 totalPages={totalPages}
                 onPageChange={setCurrentPage}
-                totalItems={contentData.total}
-                itemsPerPage={contentData.per_page || 10}
+                totalItems={contentData.data.total}
+                itemsPerPage={contentData.data.per_page || 10}
               />
             )}
           </CardContent>

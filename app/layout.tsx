@@ -1,17 +1,18 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { Inter } from "next/font/google"
+import { Inter, Manrope } from "next/font/google"
 import "./globals.css"
-import { NextAuthProvider } from "@/components/providers/session-provider"
-import { getServerSession } from "next-auth"
+// import { NextAuthProvider } from "@/components/providers/session-provider"
+// import { getServerSession } from "next-auth/next"
 import { Toaster } from "sonner"
+import AuthSessionProvider from "@/components/providers/session-provider"
 
 const inter = Inter({ subsets: ["latin"] })
+const manrope = Manrope({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
   title: "Admin Dashboard",
   description: "Admin dashboard for content management",
-    generator: 'v0.dev'
 }
 
 export default async function RootLayout({
@@ -19,15 +20,18 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  const session = await getServerSession()
+  // const session = await getServerSession()
 
   return (
     <html lang="en">
-      <body className={inter.className}>
-        <NextAuthProvider session={session}>
+      <body className={manrope.className}>
+        <AuthSessionProvider>
+
+
           {children}
+        </AuthSessionProvider>
           <Toaster />
-        </NextAuthProvider>
+        
       </body>
     </html>
   )

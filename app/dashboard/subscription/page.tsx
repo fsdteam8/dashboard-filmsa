@@ -139,9 +139,7 @@ export default function SubscriptionPage() {
     }));
   };
 
-  if (isLoading) {
-    return <div className="p-6 text-white">Loading...</div>;
-  }
+  
 
   const subscriptions = Array.isArray(subscriptionData?.data)
     ? subscriptionData.data
@@ -312,7 +310,7 @@ export default function SubscriptionPage() {
                 </TableRow>
               </TableHeader>
               {isLoading ? (
-                <TableSkeleton rows={5} columns={6} />
+                <TableSkeleton rows={10} columns={6} />
               ) : (
                 <TableBody>
                   {subscriptions.map((subscription) => (

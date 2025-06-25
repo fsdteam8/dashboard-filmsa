@@ -52,15 +52,16 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: "#111" }}>
-      <Card className="w-full max-w-md bg-gray-800 border-gray-700">
-        <CardContent className="p-8">
-          <div className="text-center mb-8">
+    <div className="min-h-screen flex flex-col items-center justify-center" style={{ backgroundColor: "black" }}>
+      <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-white mb-2">Hello, Welcome!</h1>
             <p className="text-gray-400">Please Enter Your Details Below to Continue</p>
           </div>
+      <Card className="w-full max-w-lg bg-[#111] border-gray-700">
+        <CardContent className="p-4">
+        
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-3">
             <div className="space-y-2">
               <Label htmlFor="email" className="sr-only">
                 Email
@@ -71,7 +72,7 @@ export default function LoginPage() {
                 placeholder="Email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="bg-gray-700 border-gray-600 text-white placeholder:text-gray-400 h-12"
+                className="bg-transparent border-gray-600 text-white placeholder:text-gray-400 h-12"
                 required
                 disabled={isLoading}
               />
@@ -87,7 +88,7 @@ export default function LoginPage() {
                 placeholder="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="bg-gray-700 border-gray-600 text-white placeholder:text-gray-400 h-12"
+                className="bg-transparent border-gray-600 text-white placeholder:text-gray-400 h-12"
                 required
                 disabled={isLoading}
               />
@@ -101,7 +102,7 @@ export default function LoginPage() {
 
             <Button
               type="submit"
-              className="w-full bg-white text-black hover:bg-gray-100 h-12 text-base font-medium"
+              className="w-full bg-white text-black hover:bg-gray-100 rounded-full h-12 text-base font-medium"
               disabled={isLoading}
             >
               {isLoading ? (
