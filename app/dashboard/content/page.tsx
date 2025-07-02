@@ -48,8 +48,6 @@ export default function ContentPage() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editingContent, setEditingContent] = useState<Content | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  // console.log(uploadProgress);
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -75,22 +73,14 @@ export default function ContentPage() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (formData: FormData) =>
-      contentService.createContent(formData, (progressEvent) => {
-        const percent = Math.round(
-          (progressEvent.loaded * 100) / progressEvent.total
-        );
-        setUploadProgress(percent);
-      }),
+    mutationFn: contentService.createContent,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["contents"] });
       setIsCreateOpen(false);
       resetForm();
-      setUploadProgress(0); // reset
       toast.success("Content created successfully");
     },
     onError: () => {
-      setUploadProgress(0); // reset
       toast.error("Failed to create content");
     },
   });
@@ -191,7 +181,7 @@ export default function ContentPage() {
       <div className="p-6 space-y-6 w-full">
         <div className="flex items-center justify-between bg-[#111]">
           <div>
-            <h1 className="headTitle">Content</h1>
+            <h1 className="text-3xl font-bold text-white">Content</h1>
             <p className="text-gray-400">Dashboard › Content</p>
           </div>
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
@@ -203,26 +193,27 @@ export default function ContentPage() {
             </DialogTrigger>
             <DialogContent className="bg-[#111] border-gray-700 text-white max-w-4xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle className=" text-[48px]">
-                  Create Content
-                </DialogTitle>
-                <p className="text-gray-100 text-xl">
+                <DialogTitle>Create Content</DialogTitle>
+                <p className="text-gray-400">
                   Dashboard › Content › Create Content
                 </p>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   {/* Left Column */}
-                  <div className="space-y-4 bg-[#272727] p-4 rounded-lg ">
+                  <div className="space-y-4">
                     <VideoUpload
-                      label="Video"
-                      onFileChange={(file) =>
-                        setFormData((prev) => ({ ...prev, video1: file }))
-                      }
-                      required
+                      label="Upload Video"
+                      onFileChange={(file) => {
+                        if (file) {
+                          console.log("Selected file:", file.name);
+                        } else {
+                          console.log("No file selected");
+                        }
+                      }}
                     />
 
-                    <div className="space-y-2">
+                    <div>
                       <Label htmlFor="title">Title</Label>
                       <Input
                         id="title"
@@ -239,7 +230,7 @@ export default function ContentPage() {
                       />
                     </div>
 
-                    <div className="space-y-2">
+                    <div>
                       <Label htmlFor="description">Description</Label>
                       <Textarea
                         id="description"
@@ -333,7 +324,7 @@ export default function ContentPage() {
                   </div>
 
                   {/* Right Column */}
-                  <div className="space-y-4 bg-[#272727] p-4 rounded-lg">
+                  <div className="space-y-4">
                     <div>
                       <Label>Genres</Label>
                       <Select
@@ -418,9 +409,9 @@ export default function ContentPage() {
           className="bg-[#272727] border-none rounded-lg"
         >
           <CardContent className="p-0 rounded-lg">
-            <Table className="rounded-xl">
-              <TableHeader className="border-b">
-                <TableRow className="border-none bg-[#272727] *:text-lg *:font-medium *:text-[#E7E7E7] hover:bg-[#272727]">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-none bg-[#272727] ">
                   <TableHead className="text-gray-300 font-medium">
                     Video
                   </TableHead>
@@ -456,7 +447,7 @@ export default function ContentPage() {
                     >
                       <TableCell className="py-4">
                         <div className="flex items-center gap-3">
-                          {/* <Image
+                          <Image
                             src={
                               content.image ||
                               "/placeholder.svg?height=60&width=80"
@@ -465,27 +456,19 @@ export default function ContentPage() {
                             width={80}
                             height={60}
                             className="rounded object-cover"
-                          /> */}
-                          <div className="relative h-[60px] w-[100px]">
-                            <Image
-                              src={content.image}
-                              alt={content.image}
-                              fill
-                              className="object-cover rounded"
-                            />
-                          </div>
+                          />
                           <div>
-                            <h3 className="text-white text-lg font-semibold">
+                            <h3 className="text-white font-medium">
                               {content.title}
                             </h3>
-                            <p className="text-[#B5B5B5] text-sm truncate max-w-xs">
+                            <p className="text-gray-400 text-sm truncate max-w-xs">
                               {content.description}
                             </p>
                           </div>
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge className="bg-transparent text-base leading-[120%] font-medium">
+                        <Badge className="bg-transparent">
                           {content.publish === "public" ? (
                             <>
                               <Globe className="h-3 w-3 mr-1" />
@@ -499,16 +482,16 @@ export default function ContentPage() {
                           )}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-white  text-base leading-[120%] font-medium">
+                      <TableCell className="text-gray-300">
                         {content.genre_name}
                       </TableCell>
-                      <TableCell className="text-gray-300  text-base leading-[120%] font-medium">
+                      <TableCell className="text-gray-300">
                         {new Date(content.created_at).toLocaleDateString()}
                       </TableCell>
-                      <TableCell className="text-gray-300  text-base leading-[120%] font-medium">
+                      <TableCell className="text-gray-300">
                         {content.total_view}
                       </TableCell>
-                      <TableCell className="text-gray-300  text-base leading-[120%] font-medium">
+                      <TableCell className="text-gray-300">
                         {content.total_likes}
                       </TableCell>
                       <TableCell>
@@ -519,7 +502,7 @@ export default function ContentPage() {
                             onClick={() => handleEdit(content)}
                             className="text-gray-400 hover:text-white hover:bg-gray-700"
                           >
-                            <Edit className="h-4 w-4 text-[#E7E7E7]" />
+                            <Edit className="h-4 w-4" />
                           </Button>
                           <Button
                             size="sm"
@@ -527,7 +510,7 @@ export default function ContentPage() {
                             onClick={() => deleteMutation.mutate(content.id)}
                             className="text-gray-400 hover:text-red-400 hover:bg-gray-700"
                           >
-                            <Trash2 className="h-4 w-4 text-[#E7E7E7]" />
+                            <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
                       </TableCell>
