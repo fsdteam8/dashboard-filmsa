@@ -206,7 +206,33 @@ export default function ContentPage() {
                       label="Upload Video"
                       onFileChange={(file) => {
                         if (file) {
-                          console.log("Selected file:", file.name);
+                          console.log(
+                            "Selected file: from contentssssssssssssssssssssssssssssssssssssssss",
+                            file
+                          );
+                          //? file Response: 
+                          // {
+                          //   "success": true,
+                          //   "message": "File uploaded and converted to HLS successfully",
+                          //   "fileName": "3195394_uhd_3840_2160_25fps_mp4-1751451677707-bxx5wwuh3_1751451735514.mp4",
+                          //   "originalName": "3195394-uhd_3840_2160_25fps.mp4",
+                          //   "fileSize": 13927646,
+                          //   "fileId": "3195394_uhd_3840_2160_25fps_mp4-1751451677707-bxx5wwuh3",
+                          //   "filePath": "hls/3195394_uhd_3840_2160_25fps_mp4-1751451677707-bxx5wwuh3/playlist.m3u8",
+                          //   "fileUrl": "https://flimsabucket.s3.us-east-2.amazonaws.com/hls/3195394_uhd_3840_2160_25fps_mp4-1751451677707-bxx5wwuh3/playlist.m3u8",
+                          //   "s3Key": "hls/3195394_uhd_3840_2160_25fps_mp4-1751451677707-bxx5wwuh3/playlist.m3u8",
+                          //   "hls": {
+                          //     "playlistUrl": "https://flimsabucket.s3.us-east-2.amazonaws.com/hls/3195394_uhd_3840_2160_25fps_mp4-1751451677707-bxx5wwuh3/playlist.m3u8",
+                          //     "segmentCount": 1,
+                          //     "duration": 13.96,
+                          //     "resolution": "3840x2160"
+                          //   },
+                          //   "chunksProcessed": 3,
+                          //   "conversionTime": 14183,
+                          //   "uploadTime": 4492,
+                          //   "ffmpegAvailable": true
+                          // }
+                          
                         } else {
                           console.log("No file selected");
                         }
