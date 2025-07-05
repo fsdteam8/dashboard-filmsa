@@ -2,7 +2,6 @@
 "use client";
 
 import type React from "react";
-
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -60,6 +59,9 @@ export default function ContentPage() {
     profile_pic: null as File | null,
   });
 
+  // Store the upload data from VideoUpload component
+  const [videoUploadData, setVideoUploadData] = useState<any>(null);
+
   const queryClient = useQueryClient();
 
   const { data: contentData, isLoading } = useQuery({
@@ -80,7 +82,8 @@ export default function ContentPage() {
       resetForm();
       toast.success("Content created successfully");
     },
-    onError: () => {
+    onError: (error) => {
+      console.error("Create content error:", error);
       toast.error("Failed to create content");
     },
   });
@@ -95,7 +98,8 @@ export default function ContentPage() {
       resetForm();
       toast.success("Content updated successfully");
     },
-    onError: () => {
+    onError: (error) => {
+      console.error("Update content error:", error);
       toast.error("Failed to update content");
     },
   });
@@ -123,12 +127,18 @@ export default function ContentPage() {
       image: null,
       profile_pic: null,
     });
+    setVideoUploadData(null);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    console.log("🚀 Submitting form with data:", formData);
+    console.log("📹 Video upload data:", videoUploadData);
+
     const data = new FormData();
 
+    // Add all form fields
     Object.entries(formData).forEach(([key, value]) => {
       if (value !== null && value !== "") {
         if (value instanceof File) {
@@ -138,6 +148,22 @@ export default function ContentPage() {
         }
       }
     });
+
+    // Add video1 if we have video upload data
+    if (videoUploadData) {
+      console.log("📋 Adding video1 to form data");
+      data.append("video1", JSON.stringify(videoUploadData));
+    }
+
+    // Log FormData contents for debugging
+    console.log("📤 FormData contents:");
+    for (const [key, value] of data.entries()) {
+      if (value instanceof File) {
+        console.log(`  ${key}: File(${value.name}, ${value.size} bytes)`);
+      } else {
+        console.log(`  ${key}: ${value}`);
+      }
+    }
 
     if (editingContent) {
       updateMutation.mutate({ id: editingContent.id, data });
@@ -161,20 +187,49 @@ export default function ContentPage() {
         image: null,
         profile_pic: null,
       });
+
+      // If content has video1, parse and set it
+      if (fullContent.video1) {
+        try {
+          const parsedS3Data =
+            typeof fullContent.video1 === "string"
+              ? JSON.parse(fullContent.video1)
+              : fullContent.video1;
+          setVideoUploadData(parsedS3Data);
+          console.log("📋 Loaded existing video1:", parsedS3Data);
+        } catch (error) {
+          console.error("❌ Failed to parse video1:", error);
+        }
+      }
+
       setIsEditOpen(true);
     } catch (error) {
       toast.error("Failed to load content details");
     }
   };
 
+  // Handle video upload completion
+  const handleVideoUpload = (file: File | null, uploadData?: any) => {
+    console.log("🎬 Video upload completed:", { file, uploadData });
+
+    setFormData((prev) => ({ ...prev, video1: file }));
+
+    if (uploadData) {
+      setVideoUploadData(uploadData);
+      console.log("💾 Stored video upload data:", uploadData);
+    } else {
+      setVideoUploadData(null);
+    }
+  };
+
   // Safe array initialization with null checks
-  // const contentList = Array.isArray(contentData?.data?.data) ? contentData?.data?.data : [];
+  const contentList = Array.isArray(contentData?.data?.data)
+    ? contentData?.data?.data
+    : [];
   const totalPages =
     contentData?.data?.total && contentData?.data?.per_page
       ? Math.ceil(contentData.data?.total / contentData.data?.per_page)
       : 1;
-  // const genres = Array.isArray(genresData) ? genresData.data : [];
-  // console.log(genresData);
 
   return (
     <div className="w-full min-h-screen" style={{ backgroundColor: "#111" }}>
@@ -204,40 +259,45 @@ export default function ContentPage() {
                   <div className="space-y-4">
                     <VideoUpload
                       label="Upload Video"
-                      onFileChange={(file) => {
-                        if (file) {
-                          console.log(
-                            "Selected file: from contentssssssssssssssssssssssssssssssssssssssss",
-                            file
-                          );
-                          //? file Response: 
-                          // {
-                          //   "success": true,
-                          //   "message": "File uploaded and converted to HLS successfully",
-                          //   "fileName": "3195394_uhd_3840_2160_25fps_mp4-1751451677707-bxx5wwuh3_1751451735514.mp4",
-                          //   "originalName": "3195394-uhd_3840_2160_25fps.mp4",
-                          //   "fileSize": 13927646,
-                          //   "fileId": "3195394_uhd_3840_2160_25fps_mp4-1751451677707-bxx5wwuh3",
-                          //   "filePath": "hls/3195394_uhd_3840_2160_25fps_mp4-1751451677707-bxx5wwuh3/playlist.m3u8",
-                          //   "fileUrl": "https://flimsabucket.s3.us-east-2.amazonaws.com/hls/3195394_uhd_3840_2160_25fps_mp4-1751451677707-bxx5wwuh3/playlist.m3u8",
-                          //   "s3Key": "hls/3195394_uhd_3840_2160_25fps_mp4-1751451677707-bxx5wwuh3/playlist.m3u8",
-                          //   "hls": {
-                          //     "playlistUrl": "https://flimsabucket.s3.us-east-2.amazonaws.com/hls/3195394_uhd_3840_2160_25fps_mp4-1751451677707-bxx5wwuh3/playlist.m3u8",
-                          //     "segmentCount": 1,
-                          //     "duration": 13.96,
-                          //     "resolution": "3840x2160"
-                          //   },
-                          //   "chunksProcessed": 3,
-                          //   "conversionTime": 14183,
-                          //   "uploadTime": 4492,
-                          //   "ffmpegAvailable": true
-                          // }
-                          
-                        } else {
-                          console.log("No file selected");
-                        }
-                      }}
+                      onFileChange={handleVideoUpload}
                     />
+
+                    {/* Show upload status */}
+                    {videoUploadData && (
+                      <div className="p-3 bg-green-900/20 border border-green-700 rounded-lg">
+                        <div className="flex items-center gap-2 text-green-400 text-sm">
+                          <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                          <span>Video processed successfully</span>
+                        </div>
+                        <div className="mt-2 text-xs text-gray-400">
+                          {videoUploadData.hls ? (
+                            <>
+                              <div>
+                                Format: HLS ({videoUploadData.hls.resolution})
+                              </div>
+                              <div>
+                                Duration: {videoUploadData.hls.duration}s
+                              </div>
+                              <div>
+                                Segments: {videoUploadData.hls.segmentCount}
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <div>Format: MP4</div>
+                              <div>
+                                Size:{" "}
+                                {(
+                                  videoUploadData.fileSize /
+                                  (1024 * 1024)
+                                ).toFixed(2)}{" "}
+                                MB
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    )}
 
                     <div>
                       <Label htmlFor="title">Title</Label>
@@ -307,7 +367,6 @@ export default function ContentPage() {
                           <Label htmlFor="schedule">Schedule</Label>
                         </div>
                       </RadioGroup>
-
                       {formData.publish === "schedule" && (
                         <div className="mt-4 space-y-2">
                           <Label>Schedule as public</Label>
@@ -465,7 +524,7 @@ export default function ContentPage() {
                 <TableSkeleton rows={10} columns={7} />
               ) : (
                 <TableBody>
-                  {contentData?.data?.data?.map((content: Content) => (
+                  {contentList.map((content: Content) => (
                     <TableRow
                       key={content.id}
                       className="border-[BFBFBF] hover:bg-gray-600"
@@ -476,7 +535,8 @@ export default function ContentPage() {
                           <Image
                             src={
                               content.image ||
-                              "/placeholder.svg?height=60&width=80"
+                              "/placeholder.svg?height=60&width=80" ||
+                              "/placeholder.svg"
                             }
                             alt={content.title}
                             width={80}
@@ -572,11 +632,44 @@ export default function ContentPage() {
                 <div className="space-y-4">
                   <VideoUpload
                     label="Video"
-                    onFileChange={(file) =>
-                      setFormData((prev) => ({ ...prev, video1: file }))
-                    }
+                    onFileChange={handleVideoUpload}
                     currentVideo={editingContent?.video1}
                   />
+
+                  {/* Show upload status for edit */}
+                  {videoUploadData && (
+                    <div className="p-3 bg-green-900/20 border border-green-700 rounded-lg">
+                      <div className="flex items-center gap-2 text-green-400 text-sm">
+                        <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                        <span>Video processed successfully</span>
+                      </div>
+                      <div className="mt-2 text-xs text-gray-400">
+                        {videoUploadData.hls ? (
+                          <>
+                            <div>
+                              Format: HLS ({videoUploadData.hls.resolution})
+                            </div>
+                            <div>Duration: {videoUploadData.hls.duration}s</div>
+                            <div>
+                              Segments: {videoUploadData.hls.segmentCount}
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div>Format: MP4</div>
+                            <div>
+                              Size:{" "}
+                              {(
+                                videoUploadData.fileSize /
+                                (1024 * 1024)
+                              ).toFixed(2)}{" "}
+                              MB
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
 
                   <div>
                     <Label htmlFor="edit-title">Title</Label>
@@ -634,7 +727,6 @@ export default function ContentPage() {
                         <Label htmlFor="edit-schedule">Schedule</Label>
                       </div>
                     </RadioGroup>
-
                     {formData.publish === "schedule" && (
                       <div className="mt-4 space-y-2">
                         <Label>Schedule as public</Label>

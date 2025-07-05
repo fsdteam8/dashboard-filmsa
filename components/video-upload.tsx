@@ -17,7 +17,7 @@ import {
 
 interface VideoUploadProps {
   label: string;
-  onFileChange: (file: File | null) => void;
+  onFileChange: (file: File | null, uploadData?: any) => void; // Updated to include upload data
   currentVideo?: string;
   required?: boolean;
   apiEndpoint?: string;
@@ -37,9 +37,11 @@ export function VideoUpload({
     "idle" | "uploading" | "success" | "error"
   >("idle");
   const [uploadedFileId, setUploadedFileId] = useState<string | null>(null);
+  const [uploadData, setUploadData] = useState<any>(null); // Store complete upload response
   const [retryCount, setRetryCount] = useState(0);
   const [currentChunk, setCurrentChunk] = useState(0);
   const [totalChunks, setTotalChunks] = useState(0);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -50,8 +52,6 @@ export function VideoUpload({
 
   // File validation function
   const validateVideoFile = (file: File) => validateFile(file, DEFAULT_CONFIG);
-
-  // Format file size helper function
 
   // Upload single chunk to server function
   const uploadSingleChunk = async (
@@ -125,7 +125,6 @@ export function VideoUpload({
     signal: AbortSignal
   ): Promise<void> => {
     let attempts = 0;
-
     console.log(`🔄 Starting chunk ${chunkNumber} upload with retry logic`);
 
     while (attempts < MAX_RETRIES) {
@@ -141,6 +140,7 @@ export function VideoUpload({
           fileId,
           signal
         );
+
         if (success) {
           setCurrentChunk(chunkNumber);
           console.log(
@@ -183,7 +183,7 @@ export function VideoUpload({
     fileName: string,
     fileId: string,
     signal: AbortSignal
-  ): Promise<ChunkUploadResult> => {
+  ): Promise<ChunkUploadResult & { uploadData?: any }> => {
     console.log(`🏁 Completing upload for file: ${fileName}`);
     console.log(`🆔 File ID: ${fileId}`);
 
@@ -200,7 +200,6 @@ export function VideoUpload({
 
       const endTime = Date.now();
       const completionTime = endTime - startTime;
-
       console.log(`⏱️ Upload completion time: ${completionTime}ms`);
       console.log(
         `📊 Completion response status: ${response.status} ${response.statusText}`
@@ -217,6 +216,8 @@ export function VideoUpload({
       const success = result.success || true;
       if (success) {
         console.log(`🎉 Upload completed successfully!`);
+        // Store the complete upload response data
+        setUploadData(result);
       } else {
         console.error(`❌ Upload completion failed:`, result.error);
       }
@@ -225,6 +226,7 @@ export function VideoUpload({
         success,
         fileId,
         error: result.error,
+        uploadData: result, // Include the complete response
       };
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") {
@@ -241,7 +243,9 @@ export function VideoUpload({
   };
 
   // Main chunked upload function
-  const uploadFileInChunks = async (file: File): Promise<ChunkUploadResult> => {
+  const uploadFileInChunks = async (
+    file: File
+  ): Promise<ChunkUploadResult & { uploadData?: any }> => {
     const chunks = Math.ceil(file.size / CHUNK_SIZE);
     const fileId = generateFileId(file.name);
 
@@ -258,11 +262,10 @@ export function VideoUpload({
     // Create new abort controller for this upload
     abortControllerRef.current = new AbortController();
     const signal = abortControllerRef.current.signal;
-    // file_object =
+
     try {
       setUploadStatus("uploading");
       setUploadProgress(0);
-
       const uploadStartTime = Date.now();
 
       // Upload chunks sequentially
@@ -308,7 +311,6 @@ export function VideoUpload({
       // Complete the upload
       console.log(`🏁 Starting upload completion...`);
       setUploadProgress(95);
-
       const result = await completeUpload(file.name, fileId, signal);
 
       if (result.success) {
@@ -322,7 +324,7 @@ export function VideoUpload({
             Math.round(file.size / (totalUploadTime / 1000))
           )}/s`
         );
-        return { success: true, fileId };
+        return { success: true, fileId, uploadData: result.uploadData };
       } else {
         console.error(`❌ Upload completion failed:`, result.error);
         throw new Error(result.error || "Failed to complete upload");
@@ -373,7 +375,6 @@ export function VideoUpload({
 
       try {
         const result = await uploadFileInChunks(file);
-
         if (result.success) {
           // Create preview URL for the uploaded file
           const reader = new FileReader();
@@ -383,8 +384,10 @@ export function VideoUpload({
           reader.readAsDataURL(file);
 
           setUploadedFileId(result.fileId || null);
-          onFileChange(file);
+          // Pass both file and upload data to parent
+          onFileChange(file, result.uploadData);
           console.log(`🎉 SUCCESS: Video uploaded successfully!`);
+          console.log(`📋 Upload data:`, result.uploadData);
           toast.success("Video uploaded successfully!");
         } else {
           console.error(`❌ FAILURE: ${result.error}`);
@@ -415,7 +418,6 @@ export function VideoUpload({
     if (fileInputRef.current?.files?.[0] && retryCount < MAX_RETRIES) {
       setRetryCount((prev) => prev + 1);
       const file = fileInputRef.current.files[0];
-
       console.log(`\n🔄 RETRYING UPLOAD`);
       console.log(`🎯 Retry attempt: ${retryCount + 1}/${MAX_RETRIES}`);
       console.log(`📄 File: ${file.name}`);
@@ -427,7 +429,6 @@ export function VideoUpload({
 
       try {
         const result = await uploadFileInChunks(file);
-
         if (result.success) {
           const reader = new FileReader();
           reader.onloadend = () => {
@@ -436,7 +437,7 @@ export function VideoUpload({
           reader.readAsDataURL(file);
 
           setUploadedFileId(result.fileId || null);
-          onFileChange(file);
+          onFileChange(file, result.uploadData);
           console.log(`🎉 RETRY SUCCESS: Video uploaded successfully!`);
           toast.success("Video uploaded successfully!");
         } else {
@@ -474,6 +475,7 @@ export function VideoUpload({
     setUploadProgress(0);
     setUploadStatus("idle");
     setUploadedFileId(null);
+    setUploadData(null);
     setRetryCount(0);
     setCurrentChunk(0);
     setTotalChunks(0);
@@ -535,6 +537,11 @@ export function VideoUpload({
             {uploadedFileId && (
               <span className="absolute top-2 left-2 text-xs text-gray-300 bg-black bg-opacity-50 px-2 py-1 rounded">
                 ID: {uploadedFileId.slice(-8)}
+              </span>
+            )}
+            {uploadData && (
+              <span className="absolute top-2 right-12 text-xs text-gray-300 bg-black bg-opacity-50 px-2 py-1 rounded">
+                {uploadData.hls ? "HLS" : "MP4"} Ready
               </span>
             )}
           </div>
