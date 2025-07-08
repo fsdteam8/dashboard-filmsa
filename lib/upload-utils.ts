@@ -15,6 +15,8 @@ export interface ChunkUploadResult {
   fileName?: string
   fileSize?: number
   fileUrl?: string
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  uploadResult?: any
 }
 
 export interface UploadProgress {

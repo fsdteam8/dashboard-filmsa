@@ -5,7 +5,7 @@ import { useState, useRef, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Progress } from "@/components/ui/progress"
-import { Upload, X, Play, AlertCircle, CheckCircle } from "lucide-react"
+import { Upload, X, Play, AlertCircle, CheckCircle, RefreshCw } from "lucide-react"
 import { toast } from "sonner"
 import {
   validateFile,
@@ -17,7 +17,7 @@ import {
 
 interface VideoUploadProps {
   label: string
-  onFileChange: (file: File | null) => void
+  onFileChange: (file: File | null, uploadResult?: any) => void
   currentVideo?: string
   required?: boolean
   apiEndpoint?: string
@@ -33,7 +33,7 @@ export function VideoUpload({
   const [preview, setPreview] = useState<string | null>(currentVideo || null)
   const [uploadProgress, setUploadProgress] = useState(0)
   const [isUploading, setIsUploading] = useState(false)
-  const [uploadStatus, setUploadStatus] = useState<"idle" | "uploading" | "success" | "error">("idle")
+  const [uploadStatus, setUploadStatus] = useState<"idle" | "uploading" | "processing" | "success" | "error">("idle")
   const [uploadedFileId, setUploadedFileId] = useState<string | null>(null)
   const [retryCount, setRetryCount] = useState(0)
   const [currentChunk, setCurrentChunk] = useState(0)
@@ -48,8 +48,6 @@ export function VideoUpload({
 
   // File validation function
   const validateVideoFile = (file: File) => validateFile(file, DEFAULT_CONFIG)
-
-  // Format file size helper function
 
   // Upload single chunk directly to S3 using presigned URL
   const uploadSingleChunk = async (
@@ -220,6 +218,7 @@ export function VideoUpload({
         success,
         fileId,
         error: result.error,
+        uploadResult: result, // Pass the full result
       }
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") {
@@ -276,8 +275,8 @@ export function VideoUpload({
 
         await uploadChunkWithRetry(chunk, i + 1, chunks, file.name, fileId, signal)
 
-        // Update progress (reserve 10% for completion step)
-        const progress = Math.round(((i + 1) / chunks) * 90)
+        // Update progress (reserve 30% for completion step)
+        const progress = Math.round(((i + 1) / chunks) * 70)
         setUploadProgress(progress)
         console.log(`📈 Progress: ${progress}% (${i + 1}/${chunks} chunks completed)`)
       }
@@ -286,9 +285,14 @@ export function VideoUpload({
       console.log(`\n🎯 All chunks uploaded in ${chunksUploadTime}ms`)
       console.log(`📊 Average chunk upload time: ${Math.round(chunksUploadTime / chunks)}ms`)
 
+      // Show merging/processing state
+      console.log(`🔗 Starting chunk assembly and processing...`)
+      setUploadProgress(75)
+      setUploadStatus("processing") // Add this new status
+
       // Complete the upload
-      console.log(`🏁 Starting upload completion...`)
-      setUploadProgress(95)
+      console.log(`🏁 Merging chunks and processing video...`)
+      setUploadProgress(85)
 
       const result = await completeUpload(file.name, fileId, signal)
 
@@ -299,7 +303,7 @@ export function VideoUpload({
         console.log(`🎉 UPLOAD COMPLETED SUCCESSFULLY!`)
         console.log(`⏱️ Total upload time: ${totalUploadTime}ms`)
         console.log(`📊 Average speed: ${formatFileSize(Math.round(file.size / (totalUploadTime / 1000)))}/s`)
-        return { success: true, fileId }
+        return { success: true, fileId, uploadResult: result.uploadResult }
       } else {
         console.error(`❌ Upload completion failed:`, result.error)
         throw new Error(result.error || "Failed to complete upload")
@@ -360,7 +364,7 @@ export function VideoUpload({
           reader.readAsDataURL(file)
 
           setUploadedFileId(result.fileId || null)
-          onFileChange(file)
+          onFileChange(file, result.uploadResult) // Pass the upload result
           console.log(`🎉 SUCCESS: Video uploaded successfully!`)
           toast.success("Video uploaded successfully!")
         } else {
@@ -411,7 +415,7 @@ export function VideoUpload({
           reader.readAsDataURL(file)
 
           setUploadedFileId(result.fileId || null)
-          onFileChange(file)
+          onFileChange(file, result.uploadResult)
           console.log(`🎉 RETRY SUCCESS: Video uploaded successfully!`)
           toast.success("Video uploaded successfully!")
         } else {
@@ -475,6 +479,8 @@ export function VideoUpload({
         return <AlertCircle className="h-5 w-5 text-red-500" />
       case "uploading":
         return <Upload className="h-5 w-5 text-blue-500 animate-pulse" />
+      case "processing":
+        return <RefreshCw className="h-5 w-5 text-orange-500 animate-spin" />
       default:
         return <Upload className="h-8 w-8 text-gray-400" />
     }
@@ -487,6 +493,8 @@ export function VideoUpload({
         return totalChunks > 0
           ? `Uploading chunk ${currentChunk}/${totalChunks} directly to S3 (${uploadProgress}%)`
           : `Uploading video directly to S3... ${uploadProgress}%`
+      case "processing":
+        return `Merging chunks and processing video... ${uploadProgress}%`
       case "success":
         return "Video uploaded successfully"
       case "error":
@@ -534,10 +542,13 @@ export function VideoUpload({
               {getStatusIcon()}
               <p className="text-gray-400">{getStatusText()}</p>
             </div>
-            {totalChunks > 0 && (
+            {totalChunks > 0 && uploadStatus === "uploading" && (
               <p className="text-xs text-gray-500">
                 Processing {formatFileSize(fileInputRef.current?.files?.[0]?.size || 0)} video file
               </p>
+            )}
+            {uploadStatus === "processing" && (
+              <p className="text-xs text-gray-500">Assembling {totalChunks} chunks and preparing for HLS conversion</p>
             )}
           </div>
           <Progress value={uploadProgress} className="w-full mb-4" />
@@ -548,8 +559,9 @@ export function VideoUpload({
               size="sm"
               onClick={handleCancel}
               className="bg-white text-black hover:bg-gray-100"
+              disabled={uploadStatus === "processing"} // Disable cancel during processing
             >
-              Cancel Upload
+              {uploadStatus === "processing" ? "Processing..." : "Cancel Upload"}
             </Button>
           </div>
         </div>
