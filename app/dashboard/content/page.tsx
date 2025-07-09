@@ -375,7 +375,7 @@ export default function ContentPage() {
 
     // Add video upload data as JSON string (S3 details only, not the file)
     if (finalVideoData) {
-      data.append("video_metadata", JSON.stringify(finalVideoData));
+      data.append("video1", JSON.stringify(finalVideoData));
     }
 
     console.log("\n🚀 SUBMITTING TO API...");
