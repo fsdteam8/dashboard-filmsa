@@ -483,13 +483,13 @@ export default function ContentPage() {
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
             <DialogTrigger asChild>
               <Button className="bg-white text-black hover:bg-gray-100 rounded-full px-6">
-                Create Content
+                Create Content 
                 <Plus className="h-4 w-4 mr-2" />
               </Button>
             </DialogTrigger>
             <DialogContent className="bg-[#111] border-gray-700 text-white max-w-4xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>Create Content </DialogTitle>
+                <DialogTitle>Create Content 123</DialogTitle>
                 <p className="text-gray-400">
                   Dashboard › Content › Create Content
                 </p>
@@ -797,7 +797,7 @@ export default function ContentPage() {
           <CardContent className="p-0 rounded-lg">
             <Table>
               <TableHeader>
-                <TableRow className="border-none bg-[#272727] border-b-2 border-gray-100">
+                <TableRow className="border-none bg-[#272727]">
                   <TableHead className="text-gray-300 font-medium">
                     Video
                   </TableHead>
