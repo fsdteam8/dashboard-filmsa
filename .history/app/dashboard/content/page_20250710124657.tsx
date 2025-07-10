@@ -797,7 +797,7 @@ export default function ContentPage() {
           <CardContent className="p-0 rounded-lg">
             <Table>
               <TableHeader>
-                <TableRow className="border-none bg-[#272727] border-b-2 border-gray-100">
+                <TableRow className="border-none bg-[#272727] border-b-2">
                   <TableHead className="text-gray-300 font-medium">
                     Video
                   </TableHead>
