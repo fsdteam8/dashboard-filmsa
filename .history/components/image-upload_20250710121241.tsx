@@ -49,7 +49,7 @@ export function ImageUpload({
   };
 
   return (
-    <div className="space-y-2 p-2 rounded-lg bg-[#272727]">
+    <div className="space-y-2 p-2 rounded-xl bg-[#272727]">
       <Label>{label}</Label>
       {preview ? (
         <div className="relative border-2 border-gray-600 rounded-lg p-4">

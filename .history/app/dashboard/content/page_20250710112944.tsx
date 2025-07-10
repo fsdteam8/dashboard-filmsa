@@ -489,7 +489,7 @@ export default function ContentPage() {
             </DialogTrigger>
             <DialogContent className="bg-[#111] border-gray-700 text-white max-w-4xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>Create Content </DialogTitle>
+                <DialogTitle>Create Content</DialogTitle>
                 <p className="text-gray-400">
                   Dashboard › Content › Create Content
                 </p>
