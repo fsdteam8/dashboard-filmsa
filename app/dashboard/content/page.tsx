@@ -34,21 +34,11 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { contentService, genreService, type Content } from "@/lib/services";
-import {
-  Edit,
-  Trash2,
-  Plus,
-  Globe,
-  Clock,
-  Play,
-  CheckCircle,
-  RefreshCw,
-} from "lucide-react";
+import { Edit, Trash2, Plus, Globe, Clock, Play } from "lucide-react";
 import { toast } from "sonner";
 import Image from "next/image";
 import { ImageUpload } from "@/components/image-upload";
 import { VideoUpload } from "@/components/video-upload";
-import { VideoStatusPoller } from "@/components/video-status-poller";
 import { TableSkeleton } from "@/components/table-skeleton";
 import { Pagination } from "@/components/pagination";
 
@@ -57,6 +47,7 @@ export default function ContentPage() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editingContent, setEditingContent] = useState<Content | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [isVideoUploading, setIsVideoUploading] = useState(false); // New state to track video upload status
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -64,19 +55,13 @@ export default function ContentPage() {
     genre_id: "",
     publish: "public",
     schedule: "",
-    video1: null as File | null,
+    duration: "", // New duration field
     image: null as File | null,
     profile_pic: null as File | null,
   });
 
-  // Add this state at the top with other useState declarations
-  const [autoSubmitWhenReady, setAutoSubmitWhenReady] = useState(false);
-  const [isCompleteUploadLoading, setIsCompleteUploadLoading] = useState(false);
-
-  // Store the upload data from VideoUpload component
+  // Store the upload data from VideoUpload component (now just contains S3 URL)
   const [videoUploadData, setVideoUploadData] = useState<any>(null);
-  // Store complete metadata after processing
-  const [completeVideoMetadata, setCompleteVideoMetadata] = useState<any>(null);
 
   const queryClient = useQueryClient();
 
@@ -96,12 +81,10 @@ export default function ContentPage() {
       queryClient.invalidateQueries({ queryKey: ["contents"] });
       setIsCreateOpen(false);
       resetForm();
-      setIsCompleteUploadLoading(false); // Reset loading
       toast.success("Content created successfully");
     },
     onError: (error) => {
       console.error("Create content error:", error);
-      setIsCompleteUploadLoading(false); // Reset loading
       toast.error("Failed to create content");
     },
   });
@@ -114,12 +97,10 @@ export default function ContentPage() {
       setIsEditOpen(false);
       setEditingContent(null);
       resetForm();
-      setIsCompleteUploadLoading(false); // Reset loading
       toast.success("Content updated successfully");
     },
     onError: (error) => {
       console.error("Update content error:", error);
-      setIsCompleteUploadLoading(false); // Reset loading
       toast.error("Failed to update content");
     },
   });
@@ -143,116 +124,18 @@ export default function ContentPage() {
       genre_id: "",
       publish: "public",
       schedule: "",
-      video1: null,
+      duration: "", // Reset duration field
       image: null,
       profile_pic: null,
     });
     setVideoUploadData(null);
-    setCompleteVideoMetadata(null);
-    setIsCompleteUploadLoading(false); // Reset loading
   };
 
-  // Modify the handleMetadataReady function
-  const handleMetadataReady = (processingData: any) => {
-    console.log("🎉 METADATA READY!");
-    console.log("📊 Complete processing data:", processingData);
-
-    setCompleteVideoMetadata(processingData);
-
-    // Update the video upload data with complete metadata
-    if (videoUploadData && processingData) {
-      const updatedVideoData = {
-        ...videoUploadData,
-        metadata: {
-          duration: processingData.metadata?.duration,
-          durationFormatted: processingData.metadata?.durationFormatted,
-          resolution: processingData.metadata?.resolution,
-          width: processingData.metadata?.width,
-          height: processingData.metadata?.height,
-          codec: processingData.metadata?.video_codec,
-          audioCodec: processingData.metadata?.audio_codec,
-          bitrate: processingData.metadata?.bitrate,
-          bitrateFormatted: processingData.metadata?.bitrateFormatted,
-          frameRate: processingData.metadata?.frameRate,
-          aspectRatio: processingData.metadata?.aspectRatio,
-          format: processingData.metadata?.format,
-          pixelFormat: processingData.metadata?.pixelFormat,
-        },
-        processing: {
-          ...videoUploadData.processing,
-          status: "completed",
-          completedAt: new Date().toISOString(),
-          mediaConvertJobId: processingData.processing?.mediaConvertJobId,
-        },
-        hls: {
-          ...videoUploadData.hls,
-          ready: true,
-          segmentCount: processingData.hls?.segmentCount,
-        },
-      };
-
-      setVideoUploadData(updatedVideoData);
-      console.log(
-        "✅ Updated video data with complete metadata:",
-        updatedVideoData
-      );
-
-      // Auto-submit if flag is set
-      if (autoSubmitWhenReady) {
-        console.log("🚀 Auto-submitting form with complete metadata...");
-        setAutoSubmitWhenReady(false);
-        // Trigger form submission
-        setTimeout(() => {
-          const form = document.querySelector("form");
-          if (form) {
-            form.requestSubmit();
-          }
-        }, 100);
-      }
-    }
-  };
-
-  // Modify the handleSubmit function to set auto-submit flag
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Show loading state during complete upload
-    setIsCompleteUploadLoading(true);
-
-    // If video is uploaded but metadata is still processing, set auto-submit flag
-    if (videoUploadData && !completeVideoMetadata) {
-      setAutoSubmitWhenReady(true);
-      toast.info(
-        "Video is still processing. Form will auto-save when complete."
-      );
-      setIsCompleteUploadLoading(false);
-      return;
-    }
-
-    // Rest of the existing handleSubmit code...
     console.log("🚀 FORM SUBMISSION STARTED");
     console.log("=".repeat(50));
-
-    // Use complete metadata if available, otherwise use initial upload data
-    const finalVideoData = completeVideoMetadata
-      ? {
-          ...videoUploadData,
-          metadata: {
-            duration: completeVideoMetadata.metadata?.duration,
-            durationFormatted:
-              completeVideoMetadata.metadata?.durationFormatted,
-            resolution: completeVideoMetadata.metadata?.resolution,
-            width: completeVideoMetadata.metadata?.width,
-            height: completeVideoMetadata.metadata?.height,
-            codec: completeVideoMetadata.metadata?.video_codec,
-            audioCodec: completeVideoMetadata.metadata?.audio_codec,
-            bitrate: completeVideoMetadata.metadata?.bitrate,
-            bitrateFormatted: completeVideoMetadata.metadata?.bitrateFormatted,
-            frameRate: completeVideoMetadata.metadata?.frameRate,
-            aspectRatio: completeVideoMetadata.metadata?.aspectRatio,
-          },
-        }
-      : videoUploadData;
 
     // Log form data
     console.log("📋 FORM DATA:");
@@ -262,50 +145,16 @@ export default function ContentPage() {
     console.log("  Genre ID:", formData.genre_id);
     console.log("  Publish:", formData.publish);
     console.log("  Schedule:", formData.schedule);
+    console.log("  Duration:", formData.duration); // Log duration
 
-    // Log video upload data (S3/HLS details)
-    console.log("\n📹 FINAL VIDEO DATA WITH COMPLETE METADATA:");
-    if (finalVideoData) {
-      console.log("  File ID:", finalVideoData.fileId);
-      console.log("  Original File Name:", finalVideoData.originalFileName);
-      console.log("  File Size:", finalVideoData.fileSizeFormatted);
-      console.log("  Content Type:", finalVideoData.contentType);
-
-      console.log("\n  📊 COMPLETE VIDEO METADATA:");
-      if (finalVideoData.metadata) {
-        console.log(
-          "    ⏱️ Duration:",
-          finalVideoData.metadata.duration,
-          "seconds"
-        );
-        console.log(
-          "    ⏱️ Duration Formatted:",
-          finalVideoData.metadata.durationFormatted
-        );
-        console.log("    📐 Resolution:", finalVideoData.metadata.resolution);
-        console.log("    🎬 Video Codec:", finalVideoData.metadata.codec);
-        console.log("    🔊 Audio Codec:", finalVideoData.metadata.audioCodec);
-        console.log(
-          "    📊 Bitrate:",
-          finalVideoData.metadata.bitrateFormatted
-        );
-        console.log("    🎞️ Frame Rate:", finalVideoData.metadata.frameRate);
-        console.log(
-          "    📏 Aspect Ratio:",
-          finalVideoData.metadata.aspectRatio
-        );
-      }
-
-      console.log("\n  ☁️ S3 STORAGE:");
-      if (finalVideoData.s3) {
-        console.log("    Bucket:", finalVideoData.s3.bucket);
-        console.log("    Region:", finalVideoData.s3.region);
-        console.log(
-          "    Original Video URL:",
-          finalVideoData.s3.originalVideoUrl
-        );
-        console.log("    HLS Playlist URL:", finalVideoData.s3.hlsPlaylistUrl);
-      }
+    // Log video upload data (S3 URL)
+    console.log("\n📹 VIDEO UPLOAD DATA (S3 URL):");
+    if (videoUploadData) {
+      console.log("  File ID:", videoUploadData.fileId);
+      console.log("  Original File Name:", videoUploadData.originalFileName);
+      console.log("  File Size:", videoUploadData.fileSizeFormatted);
+      console.log("  Content Type:", videoUploadData.contentType);
+      console.log("  S3 URL:", videoUploadData.s3Url);
     }
 
     // Prepare data for backend
@@ -317,37 +166,24 @@ export default function ContentPage() {
       genre_id: Number.parseInt(formData.genre_id),
       publish: formData.publish,
       schedule: formData.schedule,
+      duration: formData.duration, // Include duration
 
-      // Video metadata (S3 details) - NO FILE, just metadata
-      video_metadata: finalVideoData
+      // Video data for backend (simplified)
+      video_data: videoUploadData
         ? {
-            file_id: finalVideoData.fileId,
-            original_filename: finalVideoData.originalFileName,
-            file_size: finalVideoData.fileSize,
-            content_type: finalVideoData.contentType,
-            // ✅ COMPLETE METADATA INCLUDING DURATION
-            duration: finalVideoData.metadata?.duration,
-            duration_formatted: finalVideoData.metadata?.durationFormatted,
-            resolution: finalVideoData.metadata?.resolution,
-            width: finalVideoData.metadata?.width,
-            height: finalVideoData.metadata?.height,
-            video_codec: finalVideoData.metadata?.codec,
-            audio_codec: finalVideoData.metadata?.audioCodec,
-            bitrate: finalVideoData.metadata?.bitrate,
-            frame_rate: finalVideoData.metadata?.frameRate,
-            aspect_ratio: finalVideoData.metadata?.aspectRatio,
-            s3_bucket: finalVideoData.s3?.bucket,
-            s3_region: finalVideoData.s3?.region,
-            original_video_url: finalVideoData.s3?.originalVideoUrl,
-            hls_playlist_url: finalVideoData.s3?.hlsPlaylistUrl,
-            mediaconvert_job_id:
-              completeVideoMetadata?.processing?.mediaConvertJobId,
-            processing_status: "completed",
-            upload_method: "chunked-s3-hls",
+            file_id: videoUploadData.fileId,
+            original_filename: videoUploadData.originalFileName,
+            file_size: videoUploadData.fileSize,
+            content_type: videoUploadData.contentType,
+            s3_bucket: videoUploadData.s3Bucket,
+            s3_region: videoUploadData.s3Region,
+            s3_url: videoUploadData.s3Url, // Direct S3 URL
+            s3_key: videoUploadData.s3Key,
+            upload_method: "chunked-s3-direct",
           }
         : null,
 
-      // File uploads (images only, no video file)
+      // File uploads (will be handled separately)
       has_image: !!formData.image,
       has_profile_pic: !!formData.profile_pic,
 
@@ -361,10 +197,9 @@ export default function ContentPage() {
     // Prepare FormData for actual submission
     const data = new FormData();
 
-    // Add all form fields EXCEPT the video file
+    // Add all form fields (excluding video file)
     Object.entries(formData).forEach(([key, value]) => {
-      if (key !== "video1" && value !== null && value !== "") {
-        // Skip video1 file
+      if (value !== null && value !== "") {
         if (value instanceof File) {
           data.append(key, value);
         } else {
@@ -373,9 +208,9 @@ export default function ContentPage() {
       }
     });
 
-    // Add video upload data as JSON string (S3 details only, not the file)
-    if (finalVideoData) {
-      data.append("video1", JSON.stringify(finalVideoData));
+    // Add video upload data as JSON string (NOT the actual file)
+    if (videoUploadData) {
+      data.append("video1", JSON.stringify(videoUploadData));
     }
 
     console.log("\n🚀 SUBMITTING TO API...");
@@ -399,7 +234,7 @@ export default function ContentPage() {
         genre_id: fullContent.genre_id.toString(),
         publish: fullContent.publish,
         schedule: fullContent.schedule || "",
-        video1: null,
+        duration: fullContent.duration || "", // Load existing duration
         image: null,
         profile_pic: null,
       });
@@ -412,7 +247,6 @@ export default function ContentPage() {
               ? JSON.parse(fullContent.video1)
               : fullContent.video1;
           setVideoUploadData(parsedS3Data);
-          setCompleteVideoMetadata(parsedS3Data); // Assume existing data is complete
           console.log("📋 Loaded existing video1:", parsedS3Data);
         } catch (error) {
           console.error("❌ Failed to parse video1:", error);
@@ -424,43 +258,21 @@ export default function ContentPage() {
     }
   };
 
-  // Handle video upload completion
+  // Handle video upload completion (only store metadata, not the file)
   const handleVideoUpload = (file: File | null, uploadData?: any) => {
     console.log("🎬 Video upload completed:", { file, uploadData });
-    setFormData((prev) => ({ ...prev, video1: file }));
+    // Don't store the file in formData, only store the upload metadata
     if (uploadData) {
       setVideoUploadData(uploadData);
-      setCompleteVideoMetadata(null); // Reset complete metadata for new upload
       console.log("💾 Stored video upload data:", uploadData);
     } else {
       setVideoUploadData(null);
-      setCompleteVideoMetadata(null);
     }
   };
 
-  // Get the best available metadata
-  const getDisplayMetadata = () => {
-    if (completeVideoMetadata?.metadata) {
-      return {
-        duration:
-          completeVideoMetadata.metadata.durationFormatted ||
-          `${completeVideoMetadata.metadata.duration}s`,
-        resolution: completeVideoMetadata.metadata.resolution,
-        codec: completeVideoMetadata.metadata.video_codec,
-        size: videoUploadData?.fileSizeFormatted,
-      };
-    }
-    if (videoUploadData?.metadata) {
-      return {
-        duration:
-          videoUploadData.metadata.durationFormatted ||
-          `${videoUploadData.metadata.duration}s`,
-        resolution: videoUploadData.metadata.resolution,
-        codec: videoUploadData.metadata.codec,
-        size: videoUploadData.fileSizeFormatted,
-      };
-    }
-    return null;
+  // Handle video uploading status change
+  const handleVideoUploadingChange = (uploading: boolean) => {
+    setIsVideoUploading(uploading);
   };
 
   // Safe array initialization with null checks
@@ -489,7 +301,7 @@ export default function ContentPage() {
             </DialogTrigger>
             <DialogContent className="bg-[#111] border-gray-700 text-white max-w-4xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>Create Content </DialogTitle>
+                <DialogTitle>Create Content</DialogTitle>
                 <p className="text-gray-400">
                   Dashboard › Content › Create Content
                 </p>
@@ -501,81 +313,39 @@ export default function ContentPage() {
                     <VideoUpload
                       label="Upload Video"
                       onFileChange={handleVideoUpload}
+                      onUploadingChange={handleVideoUploadingChange} // Pass the new handler
                     />
 
-                    {/* Video Upload Status with Polling */}
+                    {/* Video Upload Status Display (Simplified) */}
                     {videoUploadData && (
-                      <div className="space-y-3">
-                        {/* Processing Status */}
-                        <div className="p-3 bg-blue-900/20 border border-blue-700 rounded-lg">
-                          <VideoStatusPoller
-                            fileId={videoUploadData.fileId}
-                            onMetadataReady={handleMetadataReady}
-                          />
+                      <div className="p-4 bg-green-900/20 border border-green-700 rounded-lg">
+                        <div className="flex items-center gap-2 text-green-400 text-sm mb-3">
+                          <Play className="h-4 w-4" />
+                          <span className="font-medium">
+                            Video uploaded successfully to S3
+                          </span>
                         </div>
-
-                        {/* Metadata Display */}
-                        <div className="p-4 bg-green-900/20 border border-green-700 rounded-lg">
-                          <div className="flex items-center gap-2 text-green-400 text-sm mb-3">
-                            <CheckCircle className="h-4 w-4" />
-                            <span className="font-medium">
-                              {completeVideoMetadata
-                                ? "Video processed with complete metadata"
-                                : "Video uploaded successfully"}
+                        <div className="grid grid-cols-2 gap-4 text-xs text-gray-300">
+                          <div>
+                            <span className="text-gray-400">File ID:</span>
+                            <br />
+                            <span className="text-white">
+                              {videoUploadData.fileId}
                             </span>
                           </div>
-
-                          {(() => {
-                            const metadata = getDisplayMetadata();
-                            return metadata ? (
-                              <div className="grid grid-cols-2 gap-4 text-xs text-gray-300">
-                                <div>
-                                  <span className="text-gray-400">
-                                    Duration:
-                                  </span>
-                                  <br />
-                                  <span className="text-white">
-                                    {metadata.duration || "Processing..."}
-                                  </span>
-                                </div>
-                                <div>
-                                  <span className="text-gray-400">
-                                    Resolution:
-                                  </span>
-                                  <br />
-                                  <span className="text-white">
-                                    {metadata.resolution || "Processing..."}
-                                  </span>
-                                </div>
-                                <div>
-                                  <span className="text-gray-400">Codec:</span>
-                                  <br />
-                                  <span className="text-white">
-                                    {metadata.codec || "Processing..."}
-                                  </span>
-                                </div>
-                                <div>
-                                  <span className="text-gray-400">Size:</span>
-                                  <br />
-                                  <span className="text-white">
-                                    {metadata.size}
-                                  </span>
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="text-xs text-gray-400">
-                                Extracting video metadata...
-                              </div>
-                            );
-                          })()}
-
-                          <div className="mt-3 pt-3 border-t border-green-700/30">
-                            <div className="text-xs text-gray-400">
-                              <div>File ID: {videoUploadData.fileId}</div>
-                              <div className="truncate">
-                                HLS URL: {videoUploadData.hls?.playlistUrl}
-                              </div>
-                            </div>
+                          <div>
+                            <span className="text-gray-400">Size:</span>
+                            <br />
+                            <span className="text-white">
+                              {videoUploadData.fileSizeFormatted}
+                            </span>
+                          </div>
+                          <div className="col-span-2">
+                            <span className="text-gray-400">S3 URL:</span>
+                            <br />
+                            <code className="text-white break-all">
+                              {videoUploadData.s3Url}
+                            </code>
                           </div>
                         </div>
                       </div>
@@ -613,6 +383,27 @@ export default function ContentPage() {
                         className="bg-[#111] border-gray-600 text-white min-h-[120px]"
                         required
                       />
+                    </div>
+
+                    {/* Duration Field */}
+                    <div>
+                      <Label htmlFor="duration">Duration</Label>
+                      <Input
+                        id="duration"
+                        value={formData.duration}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            duration: e.target.value,
+                          }))
+                        }
+                        placeholder="e.g., 2:30 or 150 seconds"
+                        className="bg-[#111] border-gray-600 text-white"
+                      />
+                      <p className="text-xs text-gray-400 mt-1">
+                        Enter duration in format like "2:30" (minutes:seconds)
+                        or "150 seconds"
+                      </p>
                     </div>
 
                     <div>
@@ -749,15 +540,6 @@ export default function ContentPage() {
                   </div>
                 </div>
 
-                {isCompleteUploadLoading && (
-                  <div className="flex items-center justify-center gap-2 p-4 bg-blue-900/20 border border-blue-700 rounded-lg">
-                    <RefreshCw className="h-4 w-4 animate-spin text-blue-400" />
-                    <span className="text-blue-400 text-sm">
-                      Saving content with video metadata...
-                    </span>
-                  </div>
-                )}
-
                 <div className="flex justify-end gap-2">
                   <Button
                     type="button"
@@ -769,20 +551,10 @@ export default function ContentPage() {
                   </Button>
                   <Button
                     type="submit"
-                    disabled={
-                      isCompleteUploadLoading ||
-                      createMutation.isPending ||
-                      (videoUploadData && !completeVideoMetadata) // Disable if video uploaded but metadata not ready
-                    }
+                    disabled={createMutation.isPending || isVideoUploading} // Disable if video is uploading
                     className="bg-white text-black hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {isCompleteUploadLoading
-                      ? "Saving Content..."
-                      : createMutation.isPending
-                      ? "Processing..."
-                      : videoUploadData && !completeVideoMetadata
-                      ? "Processing Video..."
-                      : "Save"}
+                    {createMutation.isPending ? "Saving..." : "Save"}
                   </Button>
                 </div>
               </form>
@@ -797,9 +569,12 @@ export default function ContentPage() {
           <CardContent className="p-0 rounded-lg">
             <Table>
               <TableHeader>
-                <TableRow className="border-none bg-[#272727] border-b-2 border-gray-100">
+                <TableRow className="border-none bg-[#272727]">
                   <TableHead className="text-gray-300 font-medium">
                     Video
+                  </TableHead>
+                  <TableHead className="text-gray-300 font-medium">
+                    Duration
                   </TableHead>
                   <TableHead className="text-gray-300 font-medium">
                     Visibility
@@ -822,7 +597,7 @@ export default function ContentPage() {
                 </TableRow>
               </TableHeader>
               {isLoading ? (
-                <TableSkeleton rows={10} columns={7} />
+                <TableSkeleton rows={10} columns={8} />
               ) : (
                 <TableBody>
                   {contentList.map((content: Content) => (
@@ -845,7 +620,7 @@ export default function ContentPage() {
                               height={60}
                               className="rounded object-cover"
                             />
-                            {/* Play button overlay for videos with HLS */}
+                            {/* Play button overlay for videos */}
                             {content.video1 && (
                               <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded">
                                 <Play className="h-6 w-6 text-white" />
@@ -859,7 +634,7 @@ export default function ContentPage() {
                             <p className="text-gray-400 text-sm truncate max-w-xs">
                               {content.description}
                             </p>
-                            {/* Show video metadata if available */}
+                            {/* Show video S3 URL if available */}
                             {content.video1 && (
                               <div className="text-xs text-gray-500 mt-1">
                                 {(() => {
@@ -868,14 +643,18 @@ export default function ContentPage() {
                                       typeof content.video1 === "string"
                                         ? JSON.parse(content.video1)
                                         : content.video1;
-                                    return videoData?.metadata
-                                      ?.durationFormatted
-                                      ? `${
-                                          videoData.metadata.durationFormatted
-                                        } • ${
-                                          videoData.metadata.resolution || "HD"
-                                        }`
-                                      : "Video";
+                                    return videoData?.s3Url ? (
+                                      <a
+                                        href={videoData.s3Url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-blue-400 hover:underline truncate block"
+                                      >
+                                        View S3 Video
+                                      </a>
+                                    ) : (
+                                      "Video"
+                                    );
                                   } catch {
                                     return "Video";
                                   }
@@ -884,6 +663,9 @@ export default function ContentPage() {
                             )}
                           </div>
                         </div>
+                      </TableCell>
+                      <TableCell className="text-gray-300">
+                        {content.duration || "N/A"}
                       </TableCell>
                       <TableCell>
                         <Badge className="bg-transparent">
@@ -949,7 +731,7 @@ export default function ContentPage() {
           </CardContent>
         </Card>
 
-        {/* Edit Dialog - Similar structure with polling */}
+        {/* Edit Dialog - Similar structure with duration field */}
         <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
           <DialogContent className="bg-gray-800 border-gray-700 text-white max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
@@ -966,81 +748,39 @@ export default function ContentPage() {
                     label="Video"
                     onFileChange={handleVideoUpload}
                     currentVideo={editingContent?.video1}
+                    onUploadingChange={handleVideoUploadingChange} // Pass the new handler
                   />
 
-                  {/* Video Upload Status for Edit */}
+                  {/* Video Upload Status Display (Simplified) */}
                   {videoUploadData && (
-                    <div className="space-y-3">
-                      {/* Processing Status */}
-                      {!completeVideoMetadata && (
-                        <div className="p-3 bg-blue-900/20 border border-blue-700 rounded-lg">
-                          <VideoStatusPoller
-                            fileId={videoUploadData.fileId}
-                            onMetadataReady={handleMetadataReady}
-                          />
-                        </div>
-                      )}
-
-                      {/* Metadata Display */}
-                      <div className="p-4 bg-green-900/20 border border-green-700 rounded-lg">
-                        <div className="flex items-center gap-2 text-green-400 text-sm mb-3">
-                          <CheckCircle className="h-4 w-4" />
-                          <span className="font-medium">
-                            {completeVideoMetadata
-                              ? "Video processed with complete metadata"
-                              : "Video uploaded successfully"}
+                    <div className="p-4 bg-green-900/20 border border-green-700 rounded-lg">
+                      <div className="flex items-center gap-2 text-green-400 text-sm mb-3">
+                        <Play className="h-4 w-4" />
+                        <span className="font-medium">
+                          Video uploaded successfully to S3
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4 text-xs text-gray-300">
+                        <div>
+                          <span className="text-gray-400">File ID:</span>
+                          <br />
+                          <span className="text-white">
+                            {videoUploadData.fileId}
                           </span>
                         </div>
-
-                        {(() => {
-                          const metadata = getDisplayMetadata();
-                          return metadata ? (
-                            <div className="grid grid-cols-2 gap-4 text-xs text-gray-300">
-                              <div>
-                                <span className="text-gray-400">Duration:</span>
-                                <br />
-                                <span className="text-white">
-                                  {metadata.duration || "Processing..."}
-                                </span>
-                              </div>
-                              <div>
-                                <span className="text-gray-400">
-                                  Resolution:
-                                </span>
-                                <br />
-                                <span className="text-white">
-                                  {metadata.resolution || "Processing..."}
-                                </span>
-                              </div>
-                              <div>
-                                <span className="text-gray-400">Codec:</span>
-                                <br />
-                                <span className="text-white">
-                                  {metadata.codec || "Processing..."}
-                                </span>
-                              </div>
-                              <div>
-                                <span className="text-gray-400">Size:</span>
-                                <br />
-                                <span className="text-white">
-                                  {metadata.size}
-                                </span>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="text-xs text-gray-400">
-                              Extracting video metadata...
-                            </div>
-                          );
-                        })()}
-
-                        <div className="mt-3 pt-3 border-t border-green-700/30">
-                          <div className="text-xs text-gray-400">
-                            <div>File ID: {videoUploadData.fileId}</div>
-                            <div className="truncate">
-                              HLS URL: {videoUploadData.hls?.playlistUrl}
-                            </div>
-                          </div>
+                        <div>
+                          <span className="text-gray-400">Size:</span>
+                          <br />
+                          <span className="text-white">
+                            {videoUploadData.fileSizeFormatted}
+                          </span>
+                        </div>
+                        <div className="col-span-2">
+                          <span className="text-gray-400">S3 URL:</span>
+                          <br />
+                          <code className="text-white break-all">
+                            {videoUploadData.s3Url}
+                          </code>
                         </div>
                       </div>
                     </div>
@@ -1078,6 +818,27 @@ export default function ContentPage() {
                       className="bg-gray-700 border-gray-600 text-white min-h-[120px]"
                       required
                     />
+                  </div>
+
+                  {/* Duration Field in Edit Dialog */}
+                  <div>
+                    <Label htmlFor="edit-duration">Duration</Label>
+                    <Input
+                      id="edit-duration"
+                      value={formData.duration}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          duration: e.target.value,
+                        }))
+                      }
+                      placeholder="e.g., 2:30 or 150 seconds"
+                      className="bg-gray-700 border-gray-600 text-white"
+                    />
+                    <p className="text-xs text-gray-400 mt-1">
+                      Enter duration in format like "2:30" (minutes:seconds) or
+                      "150 seconds"
+                    </p>
                   </div>
 
                   <div>
@@ -1203,15 +964,6 @@ export default function ContentPage() {
                 </div>
               </div>
 
-              {isCompleteUploadLoading && (
-                <div className="flex items-center justify-center gap-2 p-4 bg-blue-900/20 border border-blue-700 rounded-lg">
-                  <RefreshCw className="h-4 w-4 animate-spin text-blue-400" />
-                  <span className="text-blue-400 text-sm">
-                    Saving content with video metadata...
-                  </span>
-                </div>
-              )}
-
               <div className="flex justify-end gap-2">
                 <Button
                   type="button"
@@ -1223,20 +975,10 @@ export default function ContentPage() {
                 </Button>
                 <Button
                   type="submit"
-                  disabled={
-                    isCompleteUploadLoading ||
-                    updateMutation.isPending ||
-                    (videoUploadData && !completeVideoMetadata) // Disable if video uploaded but metadata not ready
-                  }
+                  disabled={updateMutation.isPending || isVideoUploading} // Disable if video is uploading
                   className="bg-white text-black hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isCompleteUploadLoading
-                    ? "Saving Content..."
-                    : updateMutation.isPending
-                    ? "Processing..."
-                    : videoUploadData && !completeVideoMetadata
-                    ? "Processing Video..."
-                    : "Update"}
+                  {updateMutation.isPending ? "Saving..." : "Update"}
                 </Button>
               </div>
             </form>
