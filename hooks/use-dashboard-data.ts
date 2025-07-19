@@ -14,6 +14,11 @@ interface DashboardData {
     name: string;
     percentage: number;
   }>;
+  gender_distribution: Array<{
+    gender: string;
+    count: number;
+    percentage: number;
+  }>;
 }
 
 interface DashboardResponse {
@@ -46,9 +51,7 @@ const getDashboardData = async (token: string): Promise<DashboardData> => {
 
 export const useDashboardData = () => {
   const { data: session, status } = useSession();
-
   const token = session?.accessToken as string | undefined;
-
   const enabled = status === "authenticated" && !!token;
 
   return useQuery({

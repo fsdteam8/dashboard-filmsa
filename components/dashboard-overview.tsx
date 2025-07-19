@@ -1,5 +1,4 @@
 "use client";
-
 import {
   Card,
   CardContent,
@@ -8,16 +7,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { ChartContainer } from "@/components/ui/chart";
-import {
-  Line,
-  LineChart,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Pie,
-  PieChart,
-  Cell,
-} from "recharts";
+import { Pie, PieChart, Cell } from "recharts";
 import { DollarSign, FileText, Users, TrendingUp } from "lucide-react";
 import { useDashboardData } from "@/hooks/use-dashboard-data";
 import { StatCardSkeleton, ChartSkeleton } from "@/components/statCardSkeleton";
@@ -34,6 +24,13 @@ const GENRE_COLORS = [
   "#eab308", // Yellow
   "#8b5cf6", // Purple
   "#f97316", // Orange
+];
+
+// Colors for gender distribution
+const GENDER_COLORS = [
+  "#3b82f6", // Blue for male
+  "#ec4899", // Pink for female
+  "#10b981", // Green for others
 ];
 
 export default function Dashboard() {
@@ -57,14 +54,12 @@ export default function Dashboard() {
         <div>
           <div className="h-6 w-64 bg-gray-200 rounded animate-pulse" />
         </div>
-
         {/* Stats Cards */}
         <div className="grid gap-6 md:grid-cols-3">
           <StatCardSkeleton />
           <StatCardSkeleton />
           <StatCardSkeleton />
         </div>
-
         <div className="grid gap-6 lg:grid-cols-2">
           <ChartSkeleton />
           <ChartSkeleton />
@@ -95,6 +90,10 @@ export default function Dashboard() {
   // Get the highest percentage for center display
   const topGenrePercentage = Math.max(
     ...data.genre_distribution.map((g) => g.percentage)
+  );
+
+  const topGenderPercentage = Math.max(
+    ...data.gender_distribution.map((g) => g.percentage)
   );
 
   // Calculate growth percentage (mock calculation since API doesn't provide it)
@@ -177,70 +176,153 @@ export default function Dashboard() {
         {/* Revenue Chart - Exact recreation */}
         <RevenueChart data={data} />
 
-        {/* Genre Distribution - Exact recreation */}
+        {/* Dual Charts - Genre and Gender Distribution */}
         <Card className="bg-[#272727] border-0 text-white">
           <CardHeader className="pb-4">
             <CardTitle className="text-white text-[32px] font-bold">
-              Most watching
+              Analytics Overview
             </CardTitle>
             <CardDescription className="text-gray-400 text-base">
-              Most watching in the Genres
+              Genre and Gender Distribution
             </CardDescription>
           </CardHeader>
           <CardContent className="pb-6">
-            <div className="relative">
-              <ChartContainer
-                config={{
-                  percentage: {
-                    label: "Percentage",
-                  },
-                }}
-                className="h-[280px]"
-              >
-                <PieChart>
-                  <Pie
-                    data={data.genre_distribution}
-                    cx="50%"
-                    cy="45%"
-                    innerRadius={80}
-                    outerRadius={120}
-                    paddingAngle={2}
-                    dataKey="percentage"
+            <div className="grid grid-cols-2 gap-6">
+              {/* Genre Distribution Chart */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-white">
+                  Most Watching Genres
+                </h3>
+                <div className="relative">
+                  <ChartContainer
+                    config={{
+                      percentage: {
+                        label: "Percentage",
+                      },
+                    }}
+                    className="h-[200px]"
                   >
-                    {data.genre_distribution.map((entry, index) => (
-                      <Cell
-                        key={`cell-${index}`}
-                        fill={GENRE_COLORS[index % GENRE_COLORS.length]}
-                      />
-                    ))}
-                  </Pie>
-                </PieChart>
-              </ChartContainer>
-
-              {/* Center percentage - exact positioning */}
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-center" style={{ marginTop: "-20px" }}>
-                  <div className="text-3xl font-bold text-white">
-                    {topGenrePercentage.toFixed(2)}%
+                    <PieChart>
+                      <Pie
+                        data={data.genre_distribution}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={50}
+                        outerRadius={80}
+                        paddingAngle={2}
+                        dataKey="percentage"
+                      >
+                        {data.genre_distribution.map((entry, index) => (
+                          <Cell
+                            key={`cell-${index}`}
+                            fill={GENRE_COLORS[index % GENRE_COLORS.length]}
+                          />
+                        ))}
+                      </Pie>
+                    </PieChart>
+                  </ChartContainer>
+                  {/* Center percentage */}
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="text-center">
+                      <div className="text-xl font-bold text-white">
+                        {topGenrePercentage.toFixed(1)}%
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </div>
-
-            {/* Legend - exact layout */}
-            <div className="grid grid-cols-2 gap-2 mt-4">
-              {data.genre_distribution.map((genre, index) => (
-                <div key={genre.genre_id} className="flex items-center gap-2">
-                  <div
-                    className="w-3 h-3 rounded-full"
-                    style={{
-                      backgroundColor:
-                        GENRE_COLORS[index % GENRE_COLORS.length],
-                    }}
-                  />
-                  <span className="text-sm text-gray-300">{genre.name}</span>
+                {/* Genre Legend */}
+                <div className="space-y-1">
+                  {data.genre_distribution.map((genre, index) => (
+                    <div
+                      key={genre.genre_id}
+                      className="flex items-center gap-2"
+                    >
+                      <div
+                        className="w-3 h-3 rounded-full"
+                        style={{
+                          backgroundColor:
+                            GENRE_COLORS[index % GENRE_COLORS.length],
+                        }}
+                      />
+                      <span className="text-sm text-gray-300">
+                        {genre.name}
+                      </span>
+                      <span className="text-sm text-gray-400 ml-auto">
+                        {genre.percentage}%
+                      </span>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              </div>
+
+              {/* Gender Distribution Chart */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-white">
+                  User Demographics
+                </h3>
+                <div className="relative">
+                  <ChartContainer
+                    config={{
+                      percentage: {
+                        label: "Percentage",
+                      },
+                    }}
+                    className="h-[200px]"
+                  >
+                    <PieChart>
+                      <Pie
+                        data={data.gender_distribution}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={50}
+                        outerRadius={80}
+                        paddingAngle={2}
+                        dataKey="percentage"
+                      >
+                        {data.gender_distribution.map((entry, index) => (
+                          <Cell
+                            key={`cell-${index}`}
+                            fill={GENDER_COLORS[index % GENDER_COLORS.length]}
+                          />
+                        ))}
+                      </Pie>
+                    </PieChart>
+                  </ChartContainer>
+                  {/* Center percentage */}
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="text-center">
+                      <div className="text-xl font-bold text-white">
+                        {topGenderPercentage > 0
+                          ? `${topGenderPercentage.toFixed(1)}%`
+                          : "N/A"}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                {/* Gender Legend */}
+                <div className="space-y-1">
+                  {data.gender_distribution.map((gender, index) => (
+                    <div
+                      key={gender.gender}
+                      className="flex items-center gap-2"
+                    >
+                      <div
+                        className="w-3 h-3 rounded-full"
+                        style={{
+                          backgroundColor:
+                            GENDER_COLORS[index % GENDER_COLORS.length],
+                        }}
+                      />
+                      <span className="text-sm text-gray-300 capitalize">
+                        {gender.gender}
+                      </span>
+                      <span className="text-sm text-gray-400 ml-auto">
+                        {gender.percentage}%
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
