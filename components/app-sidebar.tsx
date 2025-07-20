@@ -40,6 +40,11 @@ const menuItems = [
     url: "/dashboard/subscription",
     icon: CreditCard,
   },
+  {
+    title: "Advertisement",
+    url: "/dashboard/ads",
+    icon: CreditCard,
+  },
 ]
 
 export function AppSidebar() {
