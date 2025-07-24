@@ -12,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,20 +35,29 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { contentService, genreService, type Content } from "@/lib/services";
-import { Edit, Trash2, Plus, Globe, Clock, Play } from "lucide-react";
+import { Edit, Trash2, Plus, Globe, Clock, Play, Star } from "lucide-react";
 import { toast } from "sonner";
 import Image from "next/image";
 import { ImageUpload } from "@/components/image-upload";
 import { VideoUpload } from "@/components/video-upload";
 import { TableSkeleton } from "@/components/table-skeleton";
 import { Pagination } from "@/components/pagination";
+import { useSession } from "next-auth/react";
 
 export default function ContentPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editingContent, setEditingContent] = useState<Content | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [isVideoUploading, setIsVideoUploading] = useState(false); // New state to track video upload status
+  const [isVideoUploading, setIsVideoUploading] = useState(false);
+
+  const { data: session } = useSession();
+  console.log(session.accessToken);
+  // Cover confirmation modal states
+  const [isCoverConfirmOpen, setIsCoverConfirmOpen] = useState(false);
+  const [selectedContentForCover, setSelectedContentForCover] =
+    useState<Content | null>(null);
+
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -55,12 +65,11 @@ export default function ContentPage() {
     genre_id: "",
     publish: "public",
     schedule: "",
-    duration: "", // New duration field
+    duration: "",
     image: null as File | null,
     profile_pic: null as File | null,
   });
 
-  // Store the upload data from VideoUpload component (now just contains S3 URL)
   const [videoUploadData, setVideoUploadData] = useState<any>(null);
 
   const queryClient = useQueryClient();
@@ -73,6 +82,41 @@ export default function ContentPage() {
   const { data: genresData } = useQuery({
     queryKey: ["genres-all"],
     queryFn: () => genreService.getGenres(1),
+  });
+
+  // Cover API mutation
+  const coverMutation = useMutation({
+    mutationFn: async (contentId: number) => {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL || ""}/api/cover`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session?.accessToken || ""}`,
+          },
+          body: JSON.stringify({
+            content_id: contentId,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to set cover");
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["contents"] });
+      setIsCoverConfirmOpen(false);
+      setSelectedContentForCover(null);
+      toast.success("Content set as cover successfully");
+    },
+    onError: (error) => {
+      console.error("Set cover error:", error);
+      toast.error("Failed to set content as cover");
+    },
   });
 
   const createMutation = useMutation({
@@ -116,6 +160,30 @@ export default function ContentPage() {
     },
   });
 
+  // Handle table row click for cover selection
+  const handleRowClick = (content: Content, event: React.MouseEvent) => {
+    // Prevent modal from opening if clicking on action buttons
+    if ((event.target as HTMLElement).closest("button")) {
+      return;
+    }
+
+    setSelectedContentForCover(content);
+    setIsCoverConfirmOpen(true);
+  };
+
+  // Handle cover confirmation
+  const handleCoverConfirm = () => {
+    if (selectedContentForCover) {
+      coverMutation.mutate(selectedContentForCover.id);
+    }
+  };
+
+  // Handle cover cancellation
+  const handleCoverCancel = () => {
+    setIsCoverConfirmOpen(false);
+    setSelectedContentForCover(null);
+  };
+
   const resetForm = () => {
     setFormData({
       title: "",
@@ -124,7 +192,7 @@ export default function ContentPage() {
       genre_id: "",
       publish: "public",
       schedule: "",
-      duration: "", // Reset duration field
+      duration: "",
       image: null,
       profile_pic: null,
     });
@@ -133,11 +201,9 @@ export default function ContentPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-
     console.log("🚀 FORM SUBMISSION STARTED");
     console.log("=".repeat(50));
 
-    // Log form data
     console.log("📋 FORM DATA:");
     console.log("  Title:", formData.title);
     console.log("  Description:", formData.description);
@@ -145,9 +211,8 @@ export default function ContentPage() {
     console.log("  Genre ID:", formData.genre_id);
     console.log("  Publish:", formData.publish);
     console.log("  Schedule:", formData.schedule);
-    console.log("  Duration:", formData.duration); // Log duration
+    console.log("  Duration:", formData.duration);
 
-    // Log video upload data (S3 URL)
     console.log("\n📹 VIDEO UPLOAD DATA (S3 URL):");
     if (videoUploadData) {
       console.log("  File ID:", videoUploadData.fileId);
@@ -157,18 +222,14 @@ export default function ContentPage() {
       console.log("  S3 URL:", videoUploadData.s3Url);
     }
 
-    // Prepare data for backend
     const backendData = {
-      // Basic form fields
       title: formData.title,
       description: formData.description,
       director_name: formData.director_name,
       genre_id: Number.parseInt(formData.genre_id),
       publish: formData.publish,
       schedule: formData.schedule,
-      duration: formData.duration, // Include duration
-
-      // Video data for backend (simplified)
+      duration: formData.duration,
       video_data: videoUploadData
         ? {
             file_id: videoUploadData.fileId,
@@ -177,27 +238,20 @@ export default function ContentPage() {
             content_type: videoUploadData.contentType,
             s3_bucket: videoUploadData.s3Bucket,
             s3_region: videoUploadData.s3Region,
-            s3_url: videoUploadData.s3Url, // Direct S3 URL
+            s3_url: videoUploadData.s3Url,
             s3_key: videoUploadData.s3Key,
             upload_method: "chunked-s3-direct",
           }
         : null,
-
-      // File uploads (will be handled separately)
       has_image: !!formData.image,
       has_profile_pic: !!formData.profile_pic,
-
-      // Timestamps
       submitted_at: new Date().toISOString(),
     };
 
     console.log("\n📤 FINAL DATA TO SEND TO BACKEND:");
     console.log(JSON.stringify(backendData, null, 2));
 
-    // Prepare FormData for actual submission
     const data = new FormData();
-
-    // Add all form fields (excluding video file)
     Object.entries(formData).forEach(([key, value]) => {
       if (value !== null && value !== "") {
         if (value instanceof File) {
@@ -208,7 +262,6 @@ export default function ContentPage() {
       }
     });
 
-    // Add video upload data as JSON string (NOT the actual file)
     if (videoUploadData) {
       data.append("video1", JSON.stringify(videoUploadData));
     }
@@ -234,12 +287,11 @@ export default function ContentPage() {
         genre_id: fullContent.genre_id.toString(),
         publish: fullContent.publish,
         schedule: fullContent.schedule || "",
-        duration: fullContent.duration || "", // Load existing duration
+        duration: fullContent.duration || "",
         image: null,
         profile_pic: null,
       });
 
-      // If content has video1, parse and set it
       if (fullContent.video1) {
         try {
           const parsedS3Data =
@@ -258,10 +310,8 @@ export default function ContentPage() {
     }
   };
 
-  // Handle video upload completion (only store metadata, not the file)
   const handleVideoUpload = (file: File | null, uploadData?: any) => {
     console.log("🎬 Video upload completed:", { file, uploadData });
-    // Don't store the file in formData, only store the upload metadata
     if (uploadData) {
       setVideoUploadData(uploadData);
       console.log("💾 Stored video upload data:", uploadData);
@@ -270,12 +320,10 @@ export default function ContentPage() {
     }
   };
 
-  // Handle video uploading status change
   const handleVideoUploadingChange = (uploading: boolean) => {
     setIsVideoUploading(uploading);
   };
 
-  // Safe array initialization with null checks
   const contentList = Array.isArray(contentData?.data?.data)
     ? contentData?.data?.data
     : [];
@@ -313,10 +361,8 @@ export default function ContentPage() {
                     <VideoUpload
                       label="Upload Video"
                       onFileChange={handleVideoUpload}
-                      onUploadingChange={handleVideoUploadingChange} // Pass the new handler
+                      onUploadingChange={handleVideoUploadingChange}
                     />
-
-                    {/* Video Upload Status Display (Simplified) */}
                     {videoUploadData && (
                       <div className="p-4 bg-green-900/20 border border-green-700 rounded-lg">
                         <div className="flex items-center gap-2 text-green-400 text-sm mb-3">
@@ -350,7 +396,6 @@ export default function ContentPage() {
                         </div>
                       </div>
                     )}
-
                     <div>
                       <Label htmlFor="title">Title</Label>
                       <Input
@@ -367,7 +412,6 @@ export default function ContentPage() {
                         required
                       />
                     </div>
-
                     <div>
                       <Label htmlFor="description">Description</Label>
                       <Textarea
@@ -384,8 +428,6 @@ export default function ContentPage() {
                         required
                       />
                     </div>
-
-                    {/* Duration Field */}
                     <div>
                       <Label htmlFor="duration">Duration</Label>
                       <Input
@@ -405,7 +447,6 @@ export default function ContentPage() {
                         or "150 seconds"
                       </p>
                     </div>
-
                     <div>
                       <Label>Save or publish</Label>
                       <RadioGroup
@@ -480,7 +521,6 @@ export default function ContentPage() {
                       )}
                     </div>
                   </div>
-
                   {/* Right Column */}
                   <div className="space-y-4">
                     <div>
@@ -506,7 +546,6 @@ export default function ContentPage() {
                         </SelectContent>
                       </Select>
                     </div>
-
                     <ImageUpload
                       label="Thumbnail"
                       onFileChange={(file) =>
@@ -514,7 +553,6 @@ export default function ContentPage() {
                       }
                       required
                     />
-
                     <div>
                       <Label htmlFor="director">Director</Label>
                       <Input
@@ -530,7 +568,6 @@ export default function ContentPage() {
                         className="bg-[#111] border-gray-600 text-white"
                       />
                     </div>
-
                     <ImageUpload
                       label="Director's photo"
                       onFileChange={(file) =>
@@ -539,7 +576,6 @@ export default function ContentPage() {
                     />
                   </div>
                 </div>
-
                 <div className="flex justify-end gap-2">
                   <Button
                     type="button"
@@ -551,7 +587,7 @@ export default function ContentPage() {
                   </Button>
                   <Button
                     type="submit"
-                    disabled={createMutation.isPending || isVideoUploading} // Disable if video is uploading
+                    disabled={createMutation.isPending || isVideoUploading}
                     className="bg-white text-black hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {createMutation.isPending ? "Saving..." : "Save"}
@@ -592,6 +628,9 @@ export default function ContentPage() {
                     Likes
                   </TableHead>
                   <TableHead className="text-gray-300 font-medium">
+                    Watch Time
+                  </TableHead>
+                  <TableHead className="text-gray-300 font-medium">
                     Actions
                   </TableHead>
                 </TableRow>
@@ -603,8 +642,9 @@ export default function ContentPage() {
                   {contentList.map((content: Content) => (
                     <TableRow
                       key={content.id}
-                      className="border-[BFBFBF] hover:bg-gray-600"
+                      className="border-[BFBFBF] hover:bg-gray-600 cursor-pointer"
                       style={{ backgroundColor: "#272727" }}
+                      onClick={(e) => handleRowClick(content, e)}
                     >
                       <TableCell className="py-4">
                         <div className="flex items-center gap-3">
@@ -613,6 +653,7 @@ export default function ContentPage() {
                               src={
                                 content.image ||
                                 "/placeholder.svg?height=60&width=80" ||
+                                "/placeholder.svg" ||
                                 "/placeholder.svg"
                               }
                               alt={content.title}
@@ -620,7 +661,6 @@ export default function ContentPage() {
                               height={60}
                               className="rounded object-cover"
                             />
-                            {/* Play button overlay for videos */}
                             {content.video1 && (
                               <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded">
                                 <Play className="h-6 w-6 text-white" />
@@ -634,7 +674,6 @@ export default function ContentPage() {
                             <p className="text-gray-400 text-sm truncate max-w-xs">
                               {content.description}
                             </p>
-                            {/* Show video S3 URL if available */}
                             {content.video1 && (
                               <div className="text-xs text-gray-500 mt-1">
                                 {(() => {
@@ -694,12 +733,18 @@ export default function ContentPage() {
                       <TableCell className="text-gray-300">
                         {content.total_likes}
                       </TableCell>
+                      <TableCell className="text-gray-300">
+                        {content.total_watch_time}
+                      </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <Button
                             size="sm"
                             variant="ghost"
-                            onClick={() => handleEdit(content)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEdit(content);
+                            }}
                             className="text-gray-400 hover:text-white hover:bg-gray-700"
                           >
                             <Edit className="h-4 w-4" />
@@ -707,7 +752,10 @@ export default function ContentPage() {
                           <Button
                             size="sm"
                             variant="ghost"
-                            onClick={() => deleteMutation.mutate(content.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteMutation.mutate(content.id);
+                            }}
                             className="text-gray-400 hover:text-red-400 hover:bg-gray-700"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -731,6 +779,65 @@ export default function ContentPage() {
           </CardContent>
         </Card>
 
+        {/* Cover Confirmation Modal */}
+        <Dialog open={isCoverConfirmOpen} onOpenChange={setIsCoverConfirmOpen}>
+          <DialogContent className="bg-[#111] border-gray-700 text-white max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Star className="h-5 w-5 text-yellow-500" />
+                Set as Cover
+              </DialogTitle>
+            </DialogHeader>
+            <div className="py-4">
+              <p className="text-gray-300">
+                Are you sure you want to set "{selectedContentForCover?.title}"
+                as the cover content?
+              </p>
+              {selectedContentForCover && (
+                <div className="mt-4 p-3 bg-gray-800 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <Image
+                      src={
+                        selectedContentForCover.image ||
+                        "/placeholder.svg?height=40&width=60"
+                      }
+                      alt={selectedContentForCover.title}
+                      width={60}
+                      height={40}
+                      className="rounded object-cover"
+                    />
+                    <div>
+                      <h4 className="text-white font-medium text-sm">
+                        {selectedContentForCover.title}
+                      </h4>
+                      <p className="text-gray-400 text-xs">
+                        {selectedContentForCover.genre_name}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+            <DialogFooter className="gap-2">
+              <Button
+                variant="outline"
+                onClick={handleCoverCancel}
+                disabled={coverMutation.isPending}
+                className="border-gray-600 text-white hover:bg-gray-700 bg-transparent"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleCoverConfirm}
+                disabled={coverMutation.isPending}
+                className="bg-yellow-600 text-white hover:bg-yellow-700 disabled:opacity-50"
+              >
+                {coverMutation.isPending ? "Setting..." : "Confirm"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         {/* Edit Dialog - Similar structure with duration field */}
         <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
           <DialogContent className="bg-gray-800 border-gray-700 text-white max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -748,10 +855,8 @@ export default function ContentPage() {
                     label="Video"
                     onFileChange={handleVideoUpload}
                     currentVideo={editingContent?.video1}
-                    onUploadingChange={handleVideoUploadingChange} // Pass the new handler
+                    onUploadingChange={handleVideoUploadingChange}
                   />
-
-                  {/* Video Upload Status Display (Simplified) */}
                   {videoUploadData && (
                     <div className="p-4 bg-green-900/20 border border-green-700 rounded-lg">
                       <div className="flex items-center gap-2 text-green-400 text-sm mb-3">
@@ -785,7 +890,6 @@ export default function ContentPage() {
                       </div>
                     </div>
                   )}
-
                   <div>
                     <Label htmlFor="edit-title">Title</Label>
                     <Input
@@ -802,7 +906,6 @@ export default function ContentPage() {
                       required
                     />
                   </div>
-
                   <div>
                     <Label htmlFor="edit-description">Description</Label>
                     <Textarea
@@ -819,8 +922,6 @@ export default function ContentPage() {
                       required
                     />
                   </div>
-
-                  {/* Duration Field in Edit Dialog */}
                   <div>
                     <Label htmlFor="edit-duration">Duration</Label>
                     <Input
@@ -840,7 +941,6 @@ export default function ContentPage() {
                       "150 seconds"
                     </p>
                   </div>
-
                   <div>
                     <Label>Save or publish</Label>
                     <RadioGroup
@@ -903,7 +1003,6 @@ export default function ContentPage() {
                     )}
                   </div>
                 </div>
-
                 {/* Right Column */}
                 <div className="space-y-4">
                   <div>
@@ -929,7 +1028,6 @@ export default function ContentPage() {
                       </SelectContent>
                     </Select>
                   </div>
-
                   <ImageUpload
                     label="Thumbnail"
                     onFileChange={(file) =>
@@ -937,7 +1035,6 @@ export default function ContentPage() {
                     }
                     currentImage={editingContent?.image}
                   />
-
                   <div>
                     <Label htmlFor="edit-director">Director</Label>
                     <Input
@@ -953,7 +1050,6 @@ export default function ContentPage() {
                       className="bg-gray-700 border-gray-600 text-white"
                     />
                   </div>
-
                   <ImageUpload
                     label="Director's photo"
                     onFileChange={(file) =>
@@ -963,7 +1059,6 @@ export default function ContentPage() {
                   />
                 </div>
               </div>
-
               <div className="flex justify-end gap-2">
                 <Button
                   type="button"
@@ -975,7 +1070,7 @@ export default function ContentPage() {
                 </Button>
                 <Button
                   type="submit"
-                  disabled={updateMutation.isPending || isVideoUploading} // Disable if video is uploading
+                  disabled={updateMutation.isPending || isVideoUploading}
                   className="bg-white text-black hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {updateMutation.isPending ? "Saving..." : "Update"}

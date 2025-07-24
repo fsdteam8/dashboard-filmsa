@@ -1,10 +1,16 @@
-"use client"
+"use client";
 
-import { LayoutDashboard, Film, FileVideo, CreditCard, LogOut } from "lucide-react"
-import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { signOut } from "next-auth/react"
-
+import {
+  LayoutDashboard,
+  Film,
+  FileVideo,
+  CreditCard,
+  LogOut,
+  Megaphone,
+} from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { signOut } from "next-auth/react";
 
 import {
   Sidebar,
@@ -16,8 +22,8 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
-} from "@/components/ui/sidebar"
-import Image from "next/image"
+} from "@/components/ui/sidebar";
+import Image from "next/image";
 
 const menuItems = [
   {
@@ -43,24 +49,30 @@ const menuItems = [
   {
     title: "Advertisement",
     url: "/dashboard/ads",
-    icon: CreditCard,
+    icon: Megaphone,
   },
-]
+];
 
 export function AppSidebar() {
-  const pathname = usePathname()
+  const pathname = usePathname();
 
   const handleSignOut = async () => {
-    localStorage.removeItem("auth_token")
-    await signOut({ callbackUrl: "/login" })
-  }
+    localStorage.removeItem("auth_token");
+    await signOut({ callbackUrl: "/login" });
+  };
 
   return (
     <Sidebar className="w-64 bg-white ">
       <SidebarContent className="bg-white">
         <SidebarGroup className="p-0">
           <div className="flex items-center justify-center py-5">
-            <Image src="/logo.svg" alt="azlo" height={100} width={150} className="h-[44px] w-[123px]" />
+            <Image
+              src="/logo.svg"
+              alt="azlo"
+              height={100}
+              width={150}
+              className="h-[44px] w-[123px]"
+            />
           </div>
           <SidebarGroupContent className="px-0 mt-4">
             <SidebarMenu className="space-y-1">
@@ -70,12 +82,19 @@ export function AppSidebar() {
                     asChild
                     isActive={pathname === item.url}
                     className={`w-full justify-start px-4  text-gray-600 hover:text-gray-900 hover:bg-gray-300 text-[#111111] rounded-lg transition-colors ${
-                      pathname === item.url ? "!bg-[#111] !text-white font-medium" : ""
+                      pathname === item.url
+                        ? "!bg-[#111] !text-white font-medium"
+                        : ""
                     }`}
                   >
-                    <Link href={item.url} className="flex items-center gap-2 py-6">
+                    <Link
+                      href={item.url}
+                      className="flex items-center gap-2 py-6"
+                    >
                       <item.icon className="h-5 w-5" />
-                      <span className="text-lg font-semibold">{item.title}</span>
+                      <span className="text-lg font-semibold">
+                        {item.title}
+                      </span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -99,5 +118,5 @@ export function AppSidebar() {
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
-  )
+  );
 }
