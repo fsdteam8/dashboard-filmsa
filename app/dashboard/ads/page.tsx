@@ -105,6 +105,25 @@ export default function AdsManagement() {
     }
   };
 
+  function convertToCDNUrl(s3Url?: string): string {
+    const s3BaseUrl = "https://flimsabucket.s3.us-east-2.amazonaws.com";
+    const cdnBaseUrl = "https://d21phq2m56xwn6.cloudfront.net";
+
+    if (typeof s3Url === "string" && s3Url.startsWith(s3BaseUrl)) {
+      return s3Url.replace(s3BaseUrl, cdnBaseUrl);
+    }
+
+    return s3Url || "";
+  }
+  let parsedAdData;
+  try {
+    parsedAdData = selectedAd?.ads ? JSON.parse(selectedAd.ads) : null;
+  } catch (error) {
+    console.error("Failed to parse ads:", error);
+    parsedAdData = null;
+  }
+  const cdnUrl = convertToCDNUrl(parsedAdData?.s3Url);
+
   // Handle ad file change from VideoUpload component
   const handleAdUpload = (file: File | null, uploadData?: any) => {
     if (uploadData) {
@@ -300,61 +319,46 @@ export default function AdsManagement() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Preview</TableHead>
                 <TableHead>Created At</TableHead>
                 <TableHead>Updated At</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {ads.map((ad) => (
-                <TableRow key={ad.id}>
-                  <TableCell>
-                    <div className="w-20 h-12 bg-gray-100 rounded overflow-hidden">
-                      {ad.ads_url &&
-                      (ad.ads_url.includes(".mp4") ||
-                        ad.ads_url.includes(".webm") ||
-                        ad.ads_url.includes(".mov")) ? (
-                        <video
-                          src={ad.ads_url}
-                          className="w-full h-full object-cover"
-                          muted
-                        />
-                      ) : (
-                        <img
-                          src={
-                            ad.ads_url ||
-                            "/placeholder.svg?height=48&width=80&query=ad-placeholder"
-                          }
-                          alt="Ad preview"
-                          className="w-full h-full object-cover"
-                        />
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>{formatDate(ad.created_at)}</TableCell>
-                  <TableCell>{formatDate(ad.updated_at)}</TableCell>
-                  <TableCell>
-                    <div className="flex space-x-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => fetchAdDetails(ad.id)}
-                      >
-                        <Eye className="w-4 h-4" />
-                      </Button>
-                      {/* Removed Edit button */}
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => deleteAd(ad.id)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {ads.map((ad) => {
+                let adData;
+                try {
+                  adData = JSON.parse(ad.ads);
+                } catch (e) {
+                  console.error("Invalid ad JSON", e);
+                  return null;
+                }
+
+                return (
+                  <TableRow key={ad.id}>
+                    <TableCell>{formatDate(ad.created_at)}</TableCell>
+                    <TableCell>{formatDate(ad.updated_at)}</TableCell>
+                    <TableCell>
+                      <div className="flex space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => fetchAdDetails(ad.id)}
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => deleteAd(ad.id)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </CardContent>
@@ -396,22 +400,10 @@ export default function AdsManagement() {
               <div>
                 <Label>Preview</Label>
                 <div className="mt-2 border rounded-lg overflow-hidden">
-                  {selectedAd.ads_url &&
-                  (selectedAd.ads_url.includes(".mp4") ||
-                    selectedAd.ads_url.includes(".webm") ||
-                    selectedAd.ads_url.includes(".mov")) ? (
+                  {parsedAdData?.s3Url && (
                     <video
-                      src={selectedAd.ads_url}
+                      src={cdnUrl}
                       controls
-                      className="w-full max-h-64 object-contain"
-                    />
-                  ) : (
-                    <img
-                      src={
-                        selectedAd.ads_url ||
-                        "/placeholder.svg?height=64&width=256&query=ad-preview"
-                      }
-                      alt="Ad preview"
                       className="w-full max-h-64 object-contain"
                     />
                   )}

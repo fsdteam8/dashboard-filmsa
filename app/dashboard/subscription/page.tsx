@@ -1,21 +1,5 @@
 "use client";
-
-import type React from "react";
-
-import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { useState, useEffect } from "react";
 import {
   Table,
   TableBody,
@@ -24,482 +8,311 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { subscriptionService, type Subscription } from "@/lib/services";
-import { Edit, Trash2, Plus, X } from "lucide-react";
-import { toast } from "sonner";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { ChevronLeft, ChevronRight, Filter } from "lucide-react";
+import { useSession } from "next-auth/react";
 import { TableSkeleton } from "@/components/table-skeleton";
 
-export default function SubscriptionPage() {
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [isEditOpen, setIsEditOpen] = useState(false);
-  const [editingSubscription, setEditingSubscription] =
-    useState<Subscription | null>(null);
-  const [formData, setFormData] = useState({
-    plan_name: "",
-    price: 0,
-    description: "",
-    features: [] as string[],
-  });
-  const [newFeature, setNewFeature] = useState("");
+interface User {
+  id: number;
+  email: string;
+  profile_pic: string | null;
+  roles: string;
+  phone: string | null;
+  plan_type: string;
+  gender: string | null;
+  username: string | null;
+  first_name: string;
+  last_name: string | null;
+}
 
-  const queryClient = useQueryClient();
-
-  const { data: subscriptionData, isLoading } = useQuery({
-    queryKey: ["subscriptions"],
-    queryFn: () => subscriptionService.getSubscriptions(),
-  });
-
-  const createMutation = useMutation({
-    mutationFn: subscriptionService.createSubscription,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["subscriptions"] });
-      setIsCreateOpen(false);
-      resetForm();
-      toast.success("Subscription created successfully");
-    },
-    onError: () => {
-      toast.error("Failed to create subscription");
-    },
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: any }) =>
-      subscriptionService.updateSubscription(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["subscriptions"] });
-      setIsEditOpen(false);
-      setEditingSubscription(null);
-      resetForm();
-      toast.success("Subscription updated successfully");
-    },
-    onError: () => {
-      toast.error("Failed to update subscription");
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: subscriptionService.deleteSubscription,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["subscriptions"] });
-      toast.success("Subscription deleted successfully");
-    },
-    onError: () => {
-      toast.error("Failed to delete subscription");
-    },
-  });
-
-  const resetForm = () => {
-    setFormData({
-      plan_name: "",
-      price: 0,
-      description: "",
-      features: [],
-    });
-    setNewFeature("");
+interface ApiResponse {
+  success: boolean;
+  message: string;
+  data: User[];
+  meta: {
+    current_page: number;
+    per_page: number;
+    total: number;
+    last_page: number;
   };
+}
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+export default function UsersTable() {
+  const [users, setUsers] = useState<User[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [selectedPlanType, setSelectedPlanType] = useState<string>("all");
+  const [meta, setMeta] = useState({
+    current_page: 1,
+    per_page: 10,
+    total: 0,
+    last_page: 1,
+  });
+  const [loading, setLoading] = useState(true);
+  const session = useSession();
+  const token = session?.data?.accessToken;
 
-    if (editingSubscription) {
-      updateMutation.mutate({ id: editingSubscription.id, data: formData });
-    } else {
-      createMutation.mutate(formData);
+  const planTypeOptions = [
+    { value: "all", label: "All Plans" },
+    { value: "withoutads", label: "Without Ads" },
+    { value: "none", label: "None" },
+    { value: "withads", label: "With Ads" },
+  ];
+
+  const fetchUsers = async (page: number, planType = "all") => {
+    setLoading(true);
+    try {
+      let url = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/all-users?page=${page}`;
+
+      // Add plan_type filter if not "all"
+      if (planType !== "all") {
+        url += `&plan_type=${planType}`;
+      }
+
+      const response = await fetch(url, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data: ApiResponse = await response.json();
+      if (data.success) {
+        setUsers(data.data);
+        setMeta(data.meta);
+        setCurrentPage(data.meta.current_page);
+      }
+    } catch (error) {
+      console.error("Error fetching users:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleEdit = (subscription: Subscription) => {
-    setEditingSubscription(subscription);
-    setFormData({
-      plan_name: subscription.plan_name,
-      price: subscription.price,
-      description: subscription.description,
-      features: Array.isArray(subscription.features)
-        ? subscription.features
-        : [],
-    });
-    setIsEditOpen(true);
-  };
+  useEffect(() => {
+    if (token) {
+      fetchUsers(currentPage, selectedPlanType);
+    }
+  }, [currentPage, selectedPlanType, token]);
 
-  const addFeature = () => {
-    if (newFeature.trim()) {
-      setFormData((prev) => ({
-        ...prev,
-        features: [...prev.features, newFeature.trim()],
-      }));
-      setNewFeature("");
+  const handlePageChange = (page: number) => {
+    if (page >= 1 && page <= meta.last_page) {
+      setCurrentPage(page);
     }
   };
 
-  const removeFeature = (index: number) => {
-    setFormData((prev) => ({
-      ...prev,
-      features: prev.features.filter((_, i) => i !== index),
-    }));
+  const handlePlanTypeChange = (planType: string) => {
+    setSelectedPlanType(planType);
+    setCurrentPage(1); // Reset to first page when filter changes
   };
 
-  const subscriptions = Array.isArray(subscriptionData?.data)
-    ? subscriptionData.data
-    : [];
+  const getPlanColor = (plan: string) => {
+    switch (plan.toLowerCase()) {
+      case "premium":
+        return "bg-yellow-500/20 text-yellow-400 border-yellow-500/30";
+      case "pro":
+        return "bg-purple-500/20 text-purple-400 border-purple-500/30";
+      case "basic":
+        return "bg-blue-500/20 text-blue-400 border-blue-500/30";
+      case "withoutads":
+        return "bg-green-500/20 text-green-400 border-green-500/30";
+      case "withads":
+        return "bg-red-500/20 text-red-400 border-red-500/30";
+      case "none":
+        return "bg-gray-500/20 text-gray-400 border-gray-500/30";
+      default:
+        return "bg-gray-500/20 text-gray-400 border-gray-500/30";
+    }
+  };
+
+  const getPlanDisplayName = (plan: string) => {
+    switch (plan.toLowerCase()) {
+      case "withoutads":
+        return "Without Ads";
+      case "withads":
+        return "With Ads";
+      case "none":
+        return "None";
+      default:
+        return plan.charAt(0).toUpperCase() + plan.slice(1);
+    }
+  };
 
   return (
-    <div className="w-full min-h-screen" style={{ backgroundColor: "#111" }}>
-      <div className="p-6 space-y-6 w-full">
-        <div className="flex items-center justify-between w-full">
-          <div>
-            <h1 className="headTitle mb-2">Subscription</h1>
-            <p className="text-gray-400">Dashboard › Subscription</p>
+    <div className="bg-gray-900/50 rounded-lg border border-gray-800 m-10">
+      {/* Filter Section */}
+      <div className="p-6 border-b border-gray-800">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Filter className="h-4 w-4 text-gray-400" />
+            <span className="text-gray-300 text-sm font-medium">
+              Filter by Plan:
+            </span>
           </div>
-          <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-            <DialogTrigger asChild>
-              <Button className="bg-white text-black hover:bg-gray-100">
-                <Plus className="h-4 w-4 mr-2" />
-                Create Subscription
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="bg-gray-800 border-gray-700 text-white max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>Create Subscription</DialogTitle>
-                <p className="text-gray-400">
-                  Dashboard › Subscription › Create Subscription
-                </p>
-              </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="plan_name">Plan Name</Label>
-                    <Input
-                      id="plan_name"
-                      value={formData.plan_name}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          plan_name: e.target.value,
-                        }))
-                      }
-                      placeholder="Enter plan name"
-                      className="bg-gray-700 border-gray-600 text-white"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="price">Price</Label>
-                    <Input
-                      id="price"
-                      type="number"
-                      step="0.01"
-                      value={formData.price}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          price: Number.parseFloat(e.target.value) || 0,
-                        }))
-                      }
-                      placeholder="$0.00"
-                      className="bg-gray-700 border-gray-600 text-white"
-                      required
-                    />
-                  </div>
-                </div>
-                <div>
-                  <Label htmlFor="description">Description</Label>
-                  <Textarea
-                    id="description"
-                    value={formData.description}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        description: e.target.value,
-                      }))
-                    }
-                    placeholder="Write here..."
-                    className="bg-gray-700 border-gray-600 text-white min-h-[100px]"
-                    required
-                  />
-                </div>
-                <div>
-                  <Label>Features</Label>
-                  <div className="space-y-2">
-                    <div className="flex gap-2">
-                      <Input
-                        value={newFeature}
-                        onChange={(e) => setNewFeature(e.target.value)}
-                        placeholder="Add a feature"
-                        className="bg-gray-700 border-gray-600 text-white"
-                        onKeyPress={(e) =>
-                          e.key === "Enter" &&
-                          (e.preventDefault(), addFeature())
-                        }
-                      />
-                      <Button
-                        type="button"
-                        onClick={addFeature}
-                        className="bg-white text-black hover:bg-gray-100"
-                      >
-                        Add
-                      </Button>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {formData.features.map((feature, index) => (
-                        <Badge
-                          key={index}
-                          variant="secondary"
-                          className="bg-gray-600 text-white"
-                        >
-                          {feature}
-                          <X
-                            className="h-3 w-3 ml-1 cursor-pointer"
-                            onClick={() => removeFeature(index)}
-                          />
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-                <div className="flex justify-end gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setIsCreateOpen(false)}
-                    className="border-gray-600 text-gray-300 hover:bg-gray-700"
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    type="submit"
-                    disabled={createMutation.isPending}
-                    className="bg-white text-black hover:bg-gray-100"
-                  >
-                    {createMutation.isPending ? "Saving..." : "Save"}
-                  </Button>
-                </div>
-              </form>
-            </DialogContent>
-          </Dialog>
+          <Select value={selectedPlanType} onValueChange={handlePlanTypeChange}>
+            <SelectTrigger className="w-48 bg-gray-800 border-gray-700 text-gray-300">
+              <SelectValue placeholder="Select plan type" />
+            </SelectTrigger>
+            <SelectContent className="bg-gray-800 border-gray-700">
+              {planTypeOptions.map((option) => (
+                <SelectItem
+                  key={option.value}
+                  value={option.value}
+                  className="text-gray-300 focus:bg-gray-700 focus:text-white"
+                >
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {selectedPlanType !== "all" && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handlePlanTypeChange("all")}
+              className="text-gray-400 hover:text-white hover:bg-gray-800"
+            >
+              Clear Filter
+            </Button>
+          )}
         </div>
-
-        <Card
-          style={{ backgroundColor: "#272727" }}
-          className="border-gray-700 w-full"
-        >
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow className="border-gray-700 bg-gray-900">
-                  <TableHead className="text-gray-300 font-medium">
-                    Plan Name
-                  </TableHead>
-                  <TableHead className="text-gray-300 font-medium">
-                    Price
-                  </TableHead>
-                  <TableHead className="text-gray-300 font-medium">
-                    Description
-                  </TableHead>
-                  <TableHead className="text-gray-300 font-medium">
-                    Features
-                  </TableHead>
-                  <TableHead className="text-gray-300 font-medium">
-                    Active User
-                  </TableHead>
-                  <TableHead className="text-gray-300 font-medium">
-                    Action
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              {isLoading ? (
-                <TableSkeleton rows={10} columns={6} />
-              ) : (
-                <TableBody>
-                  {subscriptions.map((subscription) => (
-                    <TableRow
-                      key={subscription.id}
-                      className="border-gray-700 hover:bg-gray-600"
-                      style={{ backgroundColor: "#272727" }}
-                    >
-                      <TableCell className="text-white font-medium py-4">
-                        {subscription.plan_name}
-                      </TableCell>
-                      <TableCell className="text-gray-300">
-                        ${subscription.price}
-                      </TableCell>
-                      <TableCell className="text-gray-300 max-w-xs truncate">
-                        {subscription.description}
-                      </TableCell>
-                      <TableCell className="text-gray-300">
-                        <div className="flex flex-wrap gap-1">
-                          {Array.isArray(subscription.features) &&
-                            subscription.features
-                              .slice(0, 2)
-                              .map((feature, index) => (
-                                <Badge
-                                  key={index}
-                                  variant="secondary"
-                                  className="bg-gray-600 text-white text-xs"
-                                >
-                                  {feature}
-                                </Badge>
-                              ))}
-                          {Array.isArray(subscription.features) &&
-                            subscription.features.length > 2 && (
-                              <Badge
-                                variant="secondary"
-                                className="bg-gray-600 text-white text-xs"
-                              >
-                                +{subscription.features.length - 2} more
-                              </Badge>
-                            )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-gray-300">150</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleEdit(subscription)}
-                            className="text-gray-400 hover:text-white hover:bg-gray-700"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() =>
-                              deleteMutation.mutate(subscription.id)
-                            }
-                            className="text-gray-400 hover:text-red-400 hover:bg-gray-700"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              )}
-            </Table>
-          </CardContent>
-        </Card>
-
-        {/* Edit Dialog */}
-        <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-          <DialogContent className="bg-gray-800 border-gray-700 text-white max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Edit Subscription</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="edit_plan_name">Plan Name</Label>
-                  <Input
-                    id="edit_plan_name"
-                    value={formData.plan_name}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        plan_name: e.target.value,
-                      }))
-                    }
-                    placeholder="Enter plan name"
-                    className="bg-gray-700 border-gray-600 text-white"
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="edit_price">Price</Label>
-                  <Input
-                    id="edit_price"
-                    type="number"
-                    step="0.01"
-                    value={formData.price}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        price: Number.parseFloat(e.target.value) || 0,
-                      }))
-                    }
-                    placeholder="$0.00"
-                    className="bg-gray-700 border-gray-600 text-white"
-                    required
-                  />
-                </div>
-              </div>
-              <div>
-                <Label htmlFor="edit_description">Description</Label>
-                <Textarea
-                  id="edit_description"
-                  value={formData.description}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      description: e.target.value,
-                    }))
-                  }
-                  placeholder="Write here..."
-                  className="bg-gray-700 border-gray-600 text-white min-h-[100px]"
-                  required
-                />
-              </div>
-              <div>
-                <Label>Features</Label>
-                <div className="space-y-2">
-                  <div className="flex gap-2">
-                    <Input
-                      value={newFeature}
-                      onChange={(e) => setNewFeature(e.target.value)}
-                      placeholder="Add a feature"
-                      className="bg-gray-700 border-gray-600 text-white"
-                      onKeyPress={(e) =>
-                        e.key === "Enter" && (e.preventDefault(), addFeature())
-                      }
-                    />
-                    <Button
-                      type="button"
-                      onClick={addFeature}
-                      className="bg-white text-black hover:bg-gray-100"
-                    >
-                      Add
-                    </Button>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {formData.features.map((feature, index) => (
-                      <Badge
-                        key={index}
-                        variant="secondary"
-                        className="bg-gray-600 text-white"
-                      >
-                        {feature}
-                        <X
-                          className="h-3 w-3 ml-1 cursor-pointer"
-                          onClick={() => removeFeature(index)}
-                        />
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsEditOpen(false)}
-                  className="border-gray-600 text-gray-300 hover:bg-gray-700"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={updateMutation.isPending}
-                  className="bg-white text-black hover:bg-gray-100"
-                >
-                  {updateMutation.isPending ? "Updating..." : "Update"}
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
       </div>
+
+      <Table>
+        <TableHeader>
+          <TableRow className="border-gray-800 hover:bg-gray-800/50">
+            <TableHead className="text-gray-300 font-medium">User</TableHead>
+            <TableHead className="text-gray-300 font-medium">Email</TableHead>
+            <TableHead className="text-gray-300 font-medium">Plan</TableHead>
+            <TableHead className="text-gray-300 font-medium">Phone</TableHead>
+            <TableHead className="text-gray-300 font-medium">Gender</TableHead>
+          </TableRow>
+        </TableHeader>
+
+        {loading ? (
+          <TableSkeleton rows={10} columns={5} />
+        ) : (
+          <TableBody>
+            {users.map((user) => (
+              <TableRow
+                key={user.id}
+                className="border-gray-800 hover:bg-gray-800/30"
+              >
+                <TableCell className="py-4">
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage src={user.profile_pic || undefined} />
+                      <AvatarFallback className="bg-gray-700 text-gray-300">
+                        {user.first_name?.charAt(0) ||
+                          user.email.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <div className="text-white font-medium">
+                        {user.first_name} {user.last_name || ""}
+                      </div>
+                      {user.username && (
+                        <div className="text-gray-400 text-sm">
+                          @{user.username}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </TableCell>
+                <TableCell className="text-gray-300">{user.email}</TableCell>
+                <TableCell>
+                  <Badge className={`${getPlanColor(user.plan_type)} border`}>
+                    {getPlanDisplayName(user.plan_type)}
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-gray-300">
+                  {user.phone || "N/A"}
+                </TableCell>
+                <TableCell className="text-gray-300">
+                  {user.gender || "N/A"}
+                </TableCell>
+              </TableRow>
+            ))}
+            {users.length === 0 && !loading && (
+              <TableRow>
+                <TableCell
+                  colSpan={5}
+                  className="text-center py-8 text-gray-400"
+                >
+                  No users found for the selected filter.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        )}
+      </Table>
+
+      {/* Pagination */}
+      {!loading && users.length > 0 && (
+        <div className="flex items-center justify-between px-6 py-4 border-t border-gray-800">
+          <div className="text-gray-400 text-sm">
+            Showing {(meta.current_page - 1) * meta.per_page + 1} to{" "}
+            {Math.min(meta.current_page * meta.per_page, meta.total)} of{" "}
+            {meta.total} results
+            {selectedPlanType !== "all" && (
+              <span className="ml-2">
+                (filtered by{" "}
+                {
+                  planTypeOptions.find((opt) => opt.value === selectedPlanType)
+                    ?.label
+                }
+                )
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="text-gray-400 hover:text-white hover:bg-gray-800 disabled:opacity-50"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            {Array.from({ length: meta.last_page }, (_, i) => i + 1).map(
+              (page) => (
+                <Button
+                  key={page}
+                  variant={page === currentPage ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => handlePageChange(page)}
+                  className={
+                    page === currentPage
+                      ? "bg-white text-black hover:bg-gray-200"
+                      : "text-gray-400 hover:text-white hover:bg-gray-800"
+                  }
+                >
+                  {page}
+                </Button>
+              )
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === meta.last_page}
+              className="text-gray-400 hover:text-white hover:bg-gray-800 disabled:opacity-50"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
