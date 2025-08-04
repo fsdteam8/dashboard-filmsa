@@ -129,7 +129,9 @@ export default function GenresPage() {
               </DialogHeader> */}
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="name" className="text-base ">Genres Title</Label>
+                  <Label htmlFor="name" className="text-base ">
+                    Genres Title
+                  </Label>
                   <Input
                     id="name"
                     value={formData.name}
@@ -203,16 +205,16 @@ export default function GenresPage() {
                         className="bg-[#272727] hover:bg-black *:text-white "
                       >
                         <TableCell className="flex items-center gap-3 py-4 max-h-[100px]">
-                        <div className=" ">
-                        <div className="relative h-[60px] w-[100px]">
-                          <Image
-                            src={`${process.env.NEXT_PUBLIC_API_BASE_URL}/${genre.thumbnail}`}
-                            alt={genre.name}
-                            fill
-                            className="object-cover rounded"
-                          />
-                        </div>
-                        </div>
+                          <div className=" ">
+                            <div className="relative h-[60px] w-[100px]">
+                              <Image
+                                src={`${genre.thumbnail}`}
+                                alt={genre.name}
+                                fill
+                                className="object-cover rounded"
+                              />
+                            </div>
+                          </div>
                           <span className="text-white font-semibold text-[32px] leading-[160%]">
                             {genre.name}
                           </span>

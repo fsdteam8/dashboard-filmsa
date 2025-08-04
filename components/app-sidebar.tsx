@@ -67,11 +67,11 @@ export function AppSidebar() {
         <SidebarGroup className="p-0">
           <div className="flex items-center justify-center py-5">
             <Image
-              src="/logo.svg"
+              src="/logo.jpg"
               alt="azlo"
-              height={100}
-              width={150}
-              className="h-[44px] w-[123px]"
+              height={300}
+              width={300}
+              className="h-[50px] w-[130px]"
             />
           </div>
           <SidebarGroupContent className="px-0 mt-4">
