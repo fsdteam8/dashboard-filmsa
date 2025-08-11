@@ -7,6 +7,8 @@ import {
   CreditCard,
   LogOut,
   Megaphone,
+  LucidePanelsTopLeft,
+  FolderMinusIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -50,6 +52,11 @@ const menuItems = [
     title: "Advertisement",
     url: "/dashboard/ads",
     icon: Megaphone,
+  },
+  {
+    title: "Opinion Form",
+    url: "/dashboard/form-submissions",
+    icon: FolderMinusIcon,
   },
 ];
 
