@@ -39,8 +39,13 @@ const menuItems = [
     icon: Film,
   },
   {
-    title: "Content",
+    title: "Movies",
     url: "/dashboard/content",
+    icon: FileVideo,
+  },
+  {
+    title: "Series",
+    url: "/dashboard/series",
     icon: FileVideo,
   },
   {
