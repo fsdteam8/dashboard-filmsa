@@ -1,40 +1,71 @@
-"use client"
+"use client";
 
-import type React from "react"
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import type { Series } from "@/lib/series-services"
+import type React from "react";
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import type { Series } from "@/lib/series-services";
 
 interface SeriesFormProps {
-  isOpen: boolean
-  onClose: () => void
+  isOpen: boolean;
+  onClose: () => void;
   onSubmit: (data: {
-    title: string
-    description: string
-    release_date: string
-    status: string
-  }) => void
-  editingSeries?: Series | null
-  isLoading?: boolean
+    title: string;
+    description: string;
+    release_date: string;
+    status: string;
+  }) => void;
+  editingSeries?: Series | null;
+  isLoading?: boolean;
 }
 
-export function SeriesForm({ isOpen, onClose, onSubmit, editingSeries, isLoading = false }: SeriesFormProps) {
+export function SeriesForm({
+  isOpen,
+  onClose,
+  onSubmit,
+  editingSeries,
+  isLoading = false,
+}: SeriesFormProps) {
   const [formData, setFormData] = useState({
-    title: editingSeries?.title || "",
-    description: editingSeries?.description || "",
-    release_date: editingSeries?.release_date || "",
-    status: editingSeries?.status || "active",
-  })
+    title: "",
+    description: "",
+    release_date: "",
+    status: "active",
+  });
+
+  useEffect(() => {
+    if (editingSeries) {
+      setFormData({
+        title: editingSeries.title || "",
+        description: editingSeries.description || "",
+        release_date: editingSeries.release_date || "",
+        status: editingSeries.status || "active",
+      });
+    } else {
+      resetForm();
+    }
+  }, [editingSeries]);
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    onSubmit(formData)
-  }
+    e.preventDefault();
+    onSubmit(formData);
+  };
 
   const resetForm = () => {
     setFormData({
@@ -42,19 +73,21 @@ export function SeriesForm({ isOpen, onClose, onSubmit, editingSeries, isLoading
       description: "",
       release_date: "",
       status: "active",
-    })
-  }
+    });
+  };
 
   const handleClose = () => {
-    resetForm()
-    onClose()
-  }
+    resetForm();
+    onClose();
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="bg-[#111] border-gray-700 text-white max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{editingSeries ? "Edit Series" : "Create Series"}</DialogTitle>
+          <DialogTitle>
+            {editingSeries ? "Edit Series" : "Create Series"}
+          </DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -62,7 +95,9 @@ export function SeriesForm({ isOpen, onClose, onSubmit, editingSeries, isLoading
             <Input
               id="title"
               value={formData.title}
-              onChange={(e) => setFormData((prev) => ({ ...prev, title: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, title: e.target.value }))
+              }
               placeholder="Enter series title..."
               className="bg-[#272727] border-gray-600 text-white"
               required
@@ -104,7 +139,9 @@ export function SeriesForm({ isOpen, onClose, onSubmit, editingSeries, isLoading
             <Label>Status</Label>
             <Select
               value={formData.status}
-              onValueChange={(value) => setFormData((prev) => ({ ...prev, status: value }))}
+              onValueChange={(value) =>
+                setFormData((prev) => ({ ...prev, status: value }))
+              }
             >
               <SelectTrigger className="bg-[#272727] border-gray-600 text-white">
                 <SelectValue placeholder="Select status" />
@@ -135,12 +172,12 @@ export function SeriesForm({ isOpen, onClose, onSubmit, editingSeries, isLoading
                   ? "Updating..."
                   : "Creating..."
                 : editingSeries
-                  ? "Update Series"
-                  : "Create Series"}
+                ? "Update Series"
+                : "Create Series"}
             </Button>
           </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
-  )
+  );
 }
