@@ -1,27 +1,39 @@
-"use client"
+"use client";
 
-import type React from "react"
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import type { Season, Series } from "@/lib/series-services"
+import type React from "react";
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import type { Season, Series } from "@/lib/series-services";
 
 interface SeasonFormProps {
-  isOpen: boolean
-  onClose: () => void
+  isOpen: boolean;
+  onClose: () => void;
   onSubmit: (data: {
-    series_id: number
-    season_number: number
-    title: string
-    release_date: string
-    status: string
-  }) => void
-  editingSeason?: Season | null
-  seriesList: Series[]
-  isLoading?: boolean
+    series_id: number;
+    season_number: number;
+    title: string;
+    release_date: string;
+    status: string;
+  }) => void;
+  editingSeason?: Season | null;
+  seriesList: Series[];
+  isLoading?: boolean;
 }
 
 export function SeasonForm({
@@ -33,23 +45,37 @@ export function SeasonForm({
   isLoading = false,
 }: SeasonFormProps) {
   const [formData, setFormData] = useState({
-    series_id: editingSeason?.series_id?.toString() || "",
-    season_number: editingSeason?.season_number?.toString() || "",
-    title: editingSeason?.title || "",
-    release_date: editingSeason?.release_date || "",
-    status: editingSeason?.status || "active",
-  })
+    series_id: "",
+    season_number: "",
+    title: "",
+    release_date: "",
+    status: "active",
+  });
+
+  useEffect(() => {
+    if (editingSeason) {
+      setFormData({
+        series_id: editingSeason.series_id?.toString() || "",
+        season_number: editingSeason.season_number?.toString() || "",
+        title: editingSeason.title || "",
+        release_date: editingSeason.release_date || "",
+        status: editingSeason.status || "active",
+      });
+    } else {
+      resetForm();
+    }
+  }, [editingSeason]);
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
     onSubmit({
       series_id: Number.parseInt(formData.series_id),
       season_number: Number.parseInt(formData.season_number),
       title: formData.title,
       release_date: formData.release_date,
       status: formData.status,
-    })
-  }
+    });
+  };
 
   const resetForm = () => {
     setFormData({
@@ -58,26 +84,30 @@ export function SeasonForm({
       title: "",
       release_date: "",
       status: "active",
-    })
-  }
+    });
+  };
 
   const handleClose = () => {
-    resetForm()
-    onClose()
-  }
+    resetForm();
+    onClose();
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="bg-[#111] border-gray-700 text-white max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{editingSeason ? "Edit Season" : "Create Season"}</DialogTitle>
+          <DialogTitle>
+            {editingSeason ? "Edit Season" : "Create Season"}
+          </DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <Label>Series</Label>
             <Select
               value={formData.series_id}
-              onValueChange={(value) => setFormData((prev) => ({ ...prev, series_id: value }))}
+              onValueChange={(value) =>
+                setFormData((prev) => ({ ...prev, series_id: value }))
+              }
             >
               <SelectTrigger className="bg-[#272727] border-gray-600 text-white">
                 <SelectValue placeholder="Select series" />
@@ -114,7 +144,9 @@ export function SeasonForm({
             <Input
               id="title"
               value={formData.title}
-              onChange={(e) => setFormData((prev) => ({ ...prev, title: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, title: e.target.value }))
+              }
               placeholder="Enter season title..."
               className="bg-[#272727] border-gray-600 text-white"
               required
@@ -140,7 +172,9 @@ export function SeasonForm({
             <Label>Status</Label>
             <Select
               value={formData.status}
-              onValueChange={(value) => setFormData((prev) => ({ ...prev, status: value }))}
+              onValueChange={(value) =>
+                setFormData((prev) => ({ ...prev, status: value }))
+              }
             >
               <SelectTrigger className="bg-[#272727] border-gray-600 text-white">
                 <SelectValue placeholder="Select status" />
@@ -171,12 +205,12 @@ export function SeasonForm({
                   ? "Updating..."
                   : "Creating..."
                 : editingSeason
-                  ? "Update Season"
-                  : "Create Season"}
+                ? "Update Season"
+                : "Create Season"}
             </Button>
           </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
-  )
+  );
 }
